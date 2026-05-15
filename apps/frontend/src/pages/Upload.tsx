@@ -8,7 +8,7 @@ import { useUpload } from '../context/UploadContext';
 import type { ReviewItem, Path } from '../context/UploadContext';
 import './Upload.css';
 
-const MAX_BATCH = 10;
+const MAX_BATCH = 5;
 const PENDING_KEY = 'tizora_pending_batch';
 
 function toReviewItem(item: ScannedItem): ReviewItem {
