@@ -204,10 +204,9 @@ export default function Upload() {
         return;
       }
     } else {
-      for (const item of batchItems.filter(i => i.selected)) {
-        try { await saveClothingItem(buildPayload(item)); saved++; }
-        catch { /* continue */ }
-      }
+      const selected = batchItems.filter(i => i.selected);
+      const results  = await Promise.allSettled(selected.map(item => saveClothingItem(buildPayload(item))));
+      saved = results.filter(r => r.status === 'fulfilled').length;
       if (batchJobId) {
         fetch(`/api/scan/batch/${batchJobId}`, { method: 'DELETE', credentials: 'include' }).catch(() => {});
       }

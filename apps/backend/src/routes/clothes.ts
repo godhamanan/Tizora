@@ -68,19 +68,22 @@ router.post('/', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'name, category, color, and either image_base64 or image_url are required' });
     }
 
-    // Upload to R2 — resize to max 900px wide before upload for fast rendering
     let finalImageUrl: string | null = image_url ?? null;
     if (image_base64) {
       const match = image_base64.match(/^data:([^;]+);base64,(.+)$/s);
       if (!match) return res.status(400).json({ error: 'Invalid image_base64 format' });
-      const raw     = Buffer.from(match[2], 'base64');
-      const resized = await sharp(raw)
-        .rotate()  // apply EXIF orientation, then strip it — fixes sideways iPhone portraits
-        .resize({ width: 900, height: 900, fit: 'inside', withoutEnlargement: true })
-        .jpeg({ quality: 82 })
-        .toBuffer();
-      finalImageUrl = await uploadImage(resized, 'image/jpeg', (req as any).userId);
-      console.log(`☁️  Saved to R2 (${Math.round(resized.length / 1024)}KB): ${finalImageUrl}`);
+      const mimeType = match[1];
+      const raw      = Buffer.from(match[2], 'base64');
+      // Only re-process if not already a JPEG (scan pipeline already outputs 900px JPEG)
+      const buffer = mimeType === 'image/jpeg'
+        ? raw
+        : await sharp(raw)
+            .rotate()
+            .resize({ width: 900, height: 900, fit: 'inside', withoutEnlargement: true })
+            .jpeg({ quality: 82 })
+            .toBuffer();
+      finalImageUrl = await uploadImage(buffer, 'image/jpeg', (req as any).userId);
+      console.log(`☁️  Saved to R2 (${Math.round(buffer.length / 1024)}KB): ${finalImageUrl}`);
     }
 
     const inserted = await db
