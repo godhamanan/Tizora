@@ -131,9 +131,9 @@ export default function Suggest() {
             {OCCASIONS.map(o => (
               <button
                 key={o.value}
-                className={`suggest-card ${occasion === o.value ? 'is-active' : ''}`}
+                className="suggest-card"
                 style={{ '--card-from': o.from, '--card-to': o.to } as React.CSSProperties}
-                onClick={() => setOccasion(o.value)}
+                onClick={() => { setOccasion(o.value); fetchOutfitsFor(o.value, anchor?.id); }}
               >
                 <img src={occasionImg(o, profile?.gender)} alt={o.label} className="suggest-card-photo" loading="lazy" draggable={false} />
                 <div className="suggest-card-overlay" />
@@ -141,13 +141,9 @@ export default function Suggest() {
                   <div className="suggest-card-label">{o.label}</div>
                   <div className="suggest-card-feel">{o.feel}</div>
                 </div>
-                <div className="suggest-card-radio" />
               </button>
             ))}
           </div>
-          <button className="pill pill-primary pill-full suggest-cta" disabled={!occasion} onClick={fetchOutfits}>
-            Build my looks →
-          </button>
         </div>
       )}
 
