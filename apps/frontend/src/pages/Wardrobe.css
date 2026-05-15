@@ -53,6 +53,7 @@
   overflow: hidden;
   cursor: pointer;
   padding: 0;
+  min-width: 0; /* prevents grid item from blowing past 1fr */
   transition: border-color var(--d-base) var(--ease);
   -webkit-tap-highlight-color: transparent;
 }

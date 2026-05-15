@@ -102,6 +102,7 @@ body {
   color: var(--ink);
   line-height: 1.55;
   min-height: 100dvh;
+  overflow-x: hidden;
   overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;
 }
