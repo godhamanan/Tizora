@@ -400,7 +400,7 @@ export default function Upload() {
                 onUpdate={(field, value) => setBatchItems(prev => prev.map((it, idx) => idx === i ? { ...it, [field]: value } : it))}
               />
             ))}
-            {Array.from({ length: Math.max(0, (batchProgress?.total ?? 0) - batchItems.length) }).map((_, i) => (
+            {Array.from({ length: Math.max(0, (batchProgress?.total ?? 0) - batchItems.length - (batchProgress?.failed ?? 0)) }).map((_, i) => (
               <ScanningCard key={`scanning-${i}`} preview={batchPreviews[batchItems.length + i]} />
             ))}
           </div>

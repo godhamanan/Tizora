@@ -37,16 +37,18 @@ function parseJSON<T>(raw: string): T {
   return JSON.parse(cleaned.slice(start, end + 1)) as T;
 }
 
-async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 3): Promise<T> {
+async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 5): Promise<T> {
   for (let i = 0; i < maxAttempts; i++) {
     try { return await fn(); }
     catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      const retryable = msg.includes('503') || msg.includes('UNAVAILABLE') || msg.includes('high demand') || msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED');
+      const retryable =
+        /503|500|UNAVAILABLE|INTERNAL|high demand|429|RESOURCE_EXHAUSTED|DEADLINE_EXCEEDED|timeout|ETIMEDOUT|ECONNRESET|ECONNREFUSED|fetch failed|No JSON found/i.test(msg);
       if (retryable && i < maxAttempts - 1) {
-        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i)));
+        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i)));  // 1s, 2s, 4s, 8s, 16s
         continue;
       }
+      console.error(`classifyItem final failure after ${i + 1} attempts:`, msg);
       throw err;
     }
   }

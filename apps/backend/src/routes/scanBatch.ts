@@ -27,8 +27,8 @@ async function processJobAsync(jobId: string, files: ScanFile[]) {
 
     await Promise.allSettled(
       files.map(async (file, idx) => {
-        // Stagger starts by 250ms each — avoids hitting Gemini in lockstep
-        if (idx > 0) await new Promise(r => setTimeout(r, idx * 250));
+        // Stagger starts by 500ms each — avoids hitting Gemini in lockstep
+        if (idx > 0) await new Promise(r => setTimeout(r, idx * 500));
 
         try {
           const buffer         = Buffer.from(file.data, 'base64');
