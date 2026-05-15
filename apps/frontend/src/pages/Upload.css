@@ -1,0 +1,341 @@
+/* ═════════════════════════════════════════════════════════════════════
+   UPLOAD — Multi-step ritual
+   ═════════════════════════════════════════════════════════════════════ */
+
+.upload {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ───── Top bar ───── */
+.upload-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--s-5) var(--s-6) var(--s-3);
+  gap: var(--s-3);
+}
+.upload-back {
+  font-family: var(--sans);
+  font-size: 18px;
+  color: var(--ink-2);
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background var(--d-fast);
+}
+.upload-back:active { background: var(--bg-deep); }
+
+.upload-top-right { min-width: 36px; display: flex; justify-content: flex-end; }
+.upload-skip {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: var(--t-small);
+  color: var(--ink-3);
+}
+
+/* ───── Step container ───── */
+.upload-step {
+  padding: var(--s-8) var(--s-6) var(--s-12);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.upload-step-title {
+  margin-top: var(--s-4);
+}
+
+.upload-step-sub {
+  margin-top: var(--s-5);
+  max-width: 320px;
+}
+
+.upload-cta {
+  margin-top: auto;
+  margin-bottom: var(--s-4);
+}
+
+/* ───── Step 1 — paths ───── */
+.upload-paths {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  margin-bottom: var(--s-4);
+}
+
+.upload-path {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  text-align: left;
+  padding: var(--s-5) var(--s-5);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition: border-color var(--d-base) var(--ease);
+  color: var(--ink-3);
+  -webkit-tap-highlight-color: transparent;
+}
+.upload-path:active { transform: scale(0.99); border-color: var(--ink); }
+.upload-path > svg { flex-shrink: 0; }
+.upload-path > div { flex: 1; min-width: 0; }
+.upload-path-arrow {
+  font-size: 18px;
+  color: var(--ink-4);
+  flex-shrink: 0;
+  transition: transform var(--d-fast);
+}
+.upload-path:active .upload-path-arrow { transform: translateX(3px); }
+
+.upload-notice { margin-top: var(--s-4); }
+
+/* ───── Step 3 — reading ───── */
+.upload-reading {
+  align-items: center;
+  text-align: center;
+  justify-content: center;
+  padding-top: var(--s-16);
+}
+
+.upload-reading-frame {
+  width: 70%;
+  max-width: 240px;
+  aspect-ratio: 1/1;
+  background: var(--bg-deep);
+  border-radius: var(--r-md);
+  position: relative;
+  overflow: hidden;
+  margin-bottom: var(--s-10);
+}
+.upload-reading-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 1.5px;
+  background: linear-gradient(to right, transparent, var(--accent), transparent);
+  animation: scan-line 2s ease-in-out infinite;
+}
+
+.upload-reading-eyebrow { margin-bottom: var(--s-3); }
+
+.upload-reading-title {
+  text-align: center;
+  max-width: 320px;
+  margin: 0 auto;
+}
+.upload-reading-title em { font-style: italic; }
+
+.upload-reading-meta {
+  margin-top: var(--s-4);
+  font-family: var(--serif);
+  font-style: italic;
+}
+
+.upload-reading-dots {
+  margin-top: var(--s-8);
+}
+
+.upload-progress {
+  margin-top: var(--s-8);
+  width: 60%;
+  max-width: 240px;
+  height: 1px;
+  background: var(--border);
+  position: relative;
+  overflow: hidden;
+}
+.upload-progress-fill {
+  position: absolute;
+  inset: 0;
+  background: var(--ink);
+  transform-origin: left;
+  transition: transform var(--d-slow) var(--ease);
+}
+
+/* ───── Step 4 — meet (single) ───── */
+.upload-meet-img {
+  margin-top: var(--s-8);
+  aspect-ratio: 4/5;
+  background: var(--bg-deep);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.upload-meet-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.upload-meet-fields {
+  margin-top: var(--s-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.upload-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.upload-field-label {
+  display: block;
+}
+
+.upload-meet-pills {
+  margin-top: var(--s-5);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+.upload-meta-pill {
+  font-family: var(--sans);
+  font-size: var(--t-meta);
+  color: var(--ink-3);
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+}
+
+.upload-meet-note {
+  margin-top: var(--s-6);
+  padding: var(--s-5);
+  background: var(--bg-deep);
+  border-radius: var(--r-md);
+}
+
+/* ───── Step 4 — meet (batch) ───── */
+.upload-batch-header {
+  margin-bottom: var(--s-5);
+}
+.upload-progress-inline {
+  margin-top: var(--s-3);
+  margin-bottom: 0;
+}
+.upload-scanning-badge {
+  font-size: 0.55em;
+  color: var(--ink-3);
+  font-style: normal;
+  font-family: var(--sans);
+  letter-spacing: 0.02em;
+}
+
+.upload-batch-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-3);
+  margin-bottom: var(--s-6);
+}
+
+.upload-batch-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  cursor: pointer;
+  transition: opacity var(--d-fast), border-color var(--d-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+.upload-batch-card:active { transform: scale(0.98); }
+.upload-batch-card.is-deselected { opacity: 0.45; }
+.upload-batch-card.is-deselected .upload-batch-img img { filter: grayscale(0.5); }
+
+.upload-batch-img {
+  aspect-ratio: 3/4;
+  background: var(--bg-deep);
+  position: relative;
+  overflow: hidden;
+}
+.upload-batch-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: filter var(--d-base);
+}
+
+.upload-batch-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.7);
+  background: rgba(0,0,0,0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+  transition: all var(--d-fast);
+}
+.upload-batch-check.is-checked {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+/* Scanning overlay */
+.upload-scanning-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(1px);
+}
+.upload-batch-card--scanning {
+  cursor: default;
+  pointer-events: none;
+}
+
+.upload-batch-meta {
+  padding: 10px 12px 12px;
+}
+.upload-batch-name {
+  width: 100%;
+  font-family: var(--serif);
+  font-size: var(--t-small);
+  font-weight: 400;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  padding: 0;
+  outline: none;
+  margin-bottom: 3px;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.upload-batch-name:focus { color: var(--accent); }
+.upload-batch-name:disabled { color: var(--ink-3); }
+
+/* ───── Welcomed ───── */
+.upload-welcomed {
+  padding: var(--s-20) var(--s-6) var(--s-12);
+  text-align: center;
+  max-width: 380px;
+  margin: 0 auto;
+}
+.upload-welcomed-title {
+  margin-top: var(--s-4);
+  font-size: clamp(2.25rem, 9vw, 3rem);
+}
+.upload-welcomed-actions {
+  margin-top: var(--s-12);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}

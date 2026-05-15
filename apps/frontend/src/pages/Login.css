@@ -1,0 +1,66 @@
+.login-root {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  padding: 24px;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+}
+
+.login-brand { text-align: center; display: flex; flex-direction: column; gap: 10px; }
+
+.login-wordmark {
+  font-family: var(--serif);
+  font-size: 2.8rem;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+}
+
+.login-tagline {
+  font-size: var(--t-meta);
+  color: var(--ink-3);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.login-google-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 14px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--ink);
+  font-size: var(--t-body);
+  font-family: var(--sans);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.login-google-btn:hover { background: var(--surface-2); border-color: var(--ink-4); }
+
+.login-google-icon { width: 20px; height: 20px; flex-shrink: 0; }
+
+.login-fine-print { font-size: var(--t-meta); color: var(--ink-4); text-align: center; }
+
+.login-spinner {
+  width: 28px; height: 28px;
+  border: 2px solid var(--border);
+  border-top-color: var(--ink-3);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}

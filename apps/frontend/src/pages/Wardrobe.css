@@ -1,0 +1,112 @@
+/* ═══════════════════════════════════════════════════════════════
+   WARDROBE
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ───── Header ───── */
+.wardrobe-head {
+  padding: var(--s-10) var(--s-6) var(--s-4);
+}
+.wardrobe-head-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--s-4);
+}
+.wardrobe-title {
+  margin-top: var(--s-3);
+}
+.wardrobe-search-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-2);
+  flex-shrink: 0;
+  margin-top: 8px;
+}
+.wardrobe-search-btn:active { background: var(--bg-deep); }
+.wardrobe-search { margin-top: var(--s-5); }
+
+/* ───── Filter chips ───── */
+.wardrobe-filters {
+  margin-bottom: var(--s-6);
+}
+
+/* ───── Grid — always 2 columns ───── */
+.wardrobe-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-3);
+  padding: 0 var(--s-4) var(--s-12);
+}
+
+.wardrobe-card {
+  text-align: left;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  cursor: pointer;
+  padding: 0;
+  transition: border-color var(--d-base) var(--ease);
+  -webkit-tap-highlight-color: transparent;
+}
+.wardrobe-card:active { transform: scale(0.98); }
+.wardrobe-card:hover  { border-color: var(--border-2); }
+
+.wardrobe-card-img {
+  aspect-ratio: 3/4;
+  background: var(--bg-deep);
+  position: relative;
+  overflow: hidden;
+}
+.wardrobe-card-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.wardrobe-card-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--serif);
+  font-size: 24px;
+  color: var(--ink-4);
+}
+
+.wardrobe-card-meta {
+  padding: 10px 12px 12px;
+}
+.wardrobe-card-name {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: var(--t-small);
+  color: var(--ink);
+  line-height: 1.3;
+  margin-bottom: 3px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ───── Empty ───── */
+.wardrobe-empty {
+  background: var(--bg-deep);
+  border-radius: var(--r-md);
+  padding: var(--s-12) var(--s-6);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: var(--ink-3);
+  margin: 0 var(--s-4);
+}
+.wardrobe-empty svg { opacity: 0.5; }

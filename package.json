@@ -1,0 +1,23 @@
+{
+  "name": "tizora",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm db:up && concurrently \"pnpm dev:backend\" \"pnpm dev:frontend\" \"pnpm dev:trigger\"",
+    "dev:backend": "pnpm --filter backend dev",
+    "dev:frontend": "pnpm --filter frontend dev",
+    "dev:trigger": "pnpm --filter backend trigger:dev",
+    "build": "pnpm --filter backend build && pnpm --filter frontend build",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:reset": "docker compose down -v && docker compose up -d",
+    "db:migrate": "pnpm --filter backend migrate"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "marked": "^18.0.3"
+  }
+}

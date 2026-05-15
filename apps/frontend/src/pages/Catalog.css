@@ -1,0 +1,115 @@
+/* ═══════════════════════════════════════════════════════════════
+   CATALOG
+   ═══════════════════════════════════════════════════════════════ */
+
+.catalog {
+  padding-bottom: 100px;
+}
+
+.catalog-head {
+  padding: var(--s-10) var(--s-6) var(--s-4);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-5);
+}
+.catalog-back {
+  font-size: 22px;
+  color: var(--ink-2);
+  background: none;
+  border: none;
+  padding: 0;
+  margin-top: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.catalog-title { margin-top: var(--s-3); }
+
+.catalog-filters { margin-bottom: var(--s-5); }
+
+/* ── Grid ── */
+.catalog-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-3);
+  padding: 0 var(--s-4);
+}
+
+.catalog-card {
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  transition: border-color var(--d-fast), transform var(--d-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+.catalog-card:active { transform: scale(0.98); }
+.catalog-card.is-selected {
+  border-color: var(--ink);
+}
+
+.catalog-card-img {
+  aspect-ratio: 3/4;
+  background: var(--bg-deep);
+  position: relative;
+  overflow: hidden;
+}
+.catalog-card-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: filter var(--d-base);
+}
+.catalog-card.is-selected .catalog-card-img img {
+  filter: brightness(0.85);
+}
+
+.catalog-card-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.catalog-card-meta {
+  padding: 10px 12px 12px;
+}
+.catalog-card-name {
+  font-family: var(--serif);
+  font-size: var(--t-small);
+  color: var(--ink);
+  line-height: 1.3;
+  margin-bottom: 3px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ── Sticky CTA ── */
+.catalog-cta {
+  position: fixed;
+  bottom: calc(var(--bnav-h, 64px) + var(--s-4));
+  left: var(--s-4);
+  right: var(--s-4);
+  z-index: 50;
+}
+.catalog-cta .pill {
+  box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+}
+
+/* ── Done screen ── */
+.catalog-done {
+  padding: var(--s-20) var(--s-6) var(--s-12);
+  text-align: center;
+  max-width: 380px;
+  margin: 0 auto;
+}

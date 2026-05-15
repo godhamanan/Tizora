@@ -1,0 +1,102 @@
+.onboarding-root {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  padding: 24px;
+}
+
+.onboarding-card {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+.onboarding-header { display: flex; flex-direction: column; gap: 10px; }
+
+.onboarding-sub {
+  font-size: var(--t-body);
+  color: var(--ink-3);
+  line-height: 1.5;
+  margin-top: 4px;
+}
+
+.onboarding-section { display: flex; flex-direction: column; gap: 12px; }
+
+.onboarding-label {
+  font-size: var(--t-meta);
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+}
+
+/* Radio row */
+.onboarding-radio {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.onboarding-radio input[type="radio"] { display: none; }
+
+.onboarding-radio-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ink-4);
+  flex-shrink: 0;
+  transition: border-color 0.15s, background 0.15s;
+  position: relative;
+}
+
+.onboarding-radio-dot::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--ink);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.onboarding-radio.is-active {
+  border-color: var(--ink);
+  background: var(--surface);
+}
+
+.onboarding-radio.is-active .onboarding-radio-dot {
+  border-color: var(--ink);
+}
+
+.onboarding-radio.is-active .onboarding-radio-dot::after { opacity: 1; }
+
+.onboarding-radio-label {
+  font-size: var(--t-body);
+  color: var(--ink);
+  font-family: var(--sans);
+}
+
+.onboarding-cta {
+  width: 100%;
+  padding: 16px;
+  background: var(--ink);
+  color: var(--bg);
+  border: none;
+  border-radius: 12px;
+  font-size: var(--t-body);
+  font-family: var(--sans);
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.onboarding-cta:disabled { opacity: 0.35; cursor: not-allowed; }

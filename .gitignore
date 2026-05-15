@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Environment — never commit these
+.env
+.env.local
+.env.production
+.env.*
+!.env.example
+
+# Build output
+dist/
+build/
+
+# Trigger.dev build cache
+.trigger/
+apps/backend/.trigger/
+
+# TypeScript
+*.tsbuildinfo
+*.local
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Generated icon sources (PNGs are kept, SVG sources are not needed)
+apps/frontend/public/icons/*.svg
+apps/frontend/public/apple-touch-icon.svg
+apps/frontend/scripts/generate-icons.mjs
+
+
+# Claude internal files
+.claude/
+
+# Design / internal docs
+design/
+PRODUCT_DOC.html
+PRODUCT_DOC.md
+scripts/generate-competitor-doc.mjs
+scripts/generate-doc.mjs
+
+# Unused trigger task
+apps/backend/src/trigger/suggest.ts

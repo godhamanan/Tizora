@@ -1,0 +1,37 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "trigger:dev": "node scripts/trigger-dev.mjs",
+    "trigger:deploy": "npx trigger.dev@latest deploy",
+    "migrate": "tsx src/migrations/001_create_clothes_table.ts && tsx src/migrations/002_add_metadata_columns.ts && tsx src/migrations/003_add_image_url.ts && tsx src/migrations/003_add_rich_metadata.ts && tsx src/migrations/004_auth_and_profiles.ts && tsx src/migrations/005_scan_jobs.ts && tsx src/migrations/006_add_rich_metadata.ts && tsx src/migrations/007_drop_legacy_columns.ts && tsx src/migrations/008_fix_image_base64_nullable.ts && tsx src/migrations/009_add_catalog.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1045.0",
+    "@aws-sdk/lib-storage": "^3.1045.0",
+    "@google/genai": "^2.0.0",
+    "@trigger.dev/sdk": "4.4.6",
+    "better-auth": "^1.6.10",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.2",
+    "import-in-the-middle": "^3.0.1",
+    "kysely": "^0.27.3",
+    "multer": "^1.4.5-lts.1",
+    "pg": "^8.11.3",
+    "sharp": "^0.33.5"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/multer": "^1.4.11",
+    "@types/pg": "^8.11.0",
+    "dotenv-cli": "^11.0.0",
+    "tsx": "^4.7.1",
+    "typescript": "^5.7.2"
+  }
+}
