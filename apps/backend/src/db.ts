@@ -1,4 +1,4 @@
-import { Kysely, PostgresDialect, Generated } from 'kysely';
+import { Kysely, PostgresDialect, Generated, sql } from 'kysely';
 import pg from 'pg';
 import dotenv from 'dotenv';
 
@@ -117,7 +117,7 @@ export const db = new Kysely<Database>({
 
 export async function testConnection() {
   try {
-    await db.selectFrom('clothes').selectAll().limit(1).execute();
+    await sql`SELECT 1`.execute(db);
     console.log('✅ Database connection successful');
     return true;
   } catch (error) {

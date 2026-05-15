@@ -51,7 +51,7 @@ app.use('/catalog',    requireAuth, catalogRouter);
 async function startServer() {
   const connected = await testConnection();
   if (!connected) {
-    console.error('⚠️  Starting server without database connection');
+    console.error('⚠️  Cannot reach database — skipping migrations');
   } else {
     await runMigrations();
   }
