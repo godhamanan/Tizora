@@ -27,6 +27,7 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,woff2}', 'icons/*.png'],
         globIgnores: ['occasions/**'],
+        navigateFallbackDenylist: [/^\/auth\//],
         runtimeCaching: [
           {
             // Occasion images — cache on first load
