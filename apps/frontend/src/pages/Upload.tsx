@@ -5,7 +5,7 @@ import { scanImage, saveClothingItem } from '../api/client';
 import type { ScannedItem } from '../types/index';
 import { CATEGORIES } from '../types/index';
 import { useUpload } from '../context/UploadContext';
-import type { ReviewItem } from '../context/UploadContext';
+import type { ReviewItem, Path } from '../context/UploadContext';
 import './Upload.css';
 
 const MAX_BATCH = 10;
