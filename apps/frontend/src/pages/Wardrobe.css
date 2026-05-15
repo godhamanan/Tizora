@@ -39,9 +39,10 @@
 /* ───── Grid — always 2 columns ───── */
 .wardrobe-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--s-3);
-  padding: 0 var(--s-4) var(--s-12);
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  padding: 0 12px var(--s-12);
+  /* explicit values so .section double-padding can't interfere */
 }
 
 .wardrobe-card {

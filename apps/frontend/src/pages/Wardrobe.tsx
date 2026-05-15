@@ -78,7 +78,7 @@ export default function Wardrobe() {
 
       {/* Loading skeleton */}
       {loading && (
-        <div className="wardrobe-grid section">
+        <div className="wardrobe-grid">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="wardrobe-card">
               <div className="wardrobe-card-img skeleton" />
@@ -118,7 +118,7 @@ export default function Wardrobe() {
 
       {/* Grid */}
       {!loading && !error && filtered.length > 0 && (
-        <div className="wardrobe-grid section">
+        <div className="wardrobe-grid">
           {filtered.map((item, i) => (
             <button
               key={item.id}
