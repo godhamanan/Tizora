@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { toNodeHandler } from 'better-auth/node';
 import { testConnection } from './db.js';
+import { runMigrations } from './runMigrations.js';
 import { auth } from './auth.js';
 import { requireAuth } from './middleware/requireAuth.js';
 import clothesRouter    from './routes/clothes.js';
@@ -51,7 +52,8 @@ async function startServer() {
   const connected = await testConnection();
   if (!connected) {
     console.error('⚠️  Starting server without database connection');
-    console.error('    Run: pnpm db:up && pnpm db:migrate');
+  } else {
+    await runMigrations();
   }
   app.listen(PORT, () => {
     console.log(`🚀 Tizora backend running on http://localhost:${PORT}`);
