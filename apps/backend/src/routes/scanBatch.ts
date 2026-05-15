@@ -14,7 +14,7 @@ const upload = multer({
   limits:  { fileSize: 10 * 1024 * 1024, files: MAX_BATCH },
 });
 
-type ScanFile = { id: number; job_id: string; filename: string; mime: string; data: string };
+type ScanFile = { filename: string; mime: string; data: string };
 
 async function classifyBatch(files: ScanFile[]): Promise<(ItemClassification | null)[]> {
   const n     = files.length;
@@ -52,19 +52,14 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 4): Promise<T> {
   throw new Error('unreachable');
 }
 
-async function processJobAsync(jobId: string) {
+async function processJobAsync(jobId: string, files: ScanFile[]) {
   try {
-    const files = await db
-      .selectFrom('scan_job_files').selectAll()
-      .where('job_id', '=', jobId)
-      .execute();
-
     if (!files.length) {
       await db.updateTable('scan_jobs').set({ status: 'complete' }).where('id', '=', jobId).execute();
       return;
     }
 
-    // Split into batches of MAX_BATCH, run in parallel
+    // Split into batches, run in parallel
     const BATCH_SIZE = 5;
     const batches: ScanFile[][] = [];
     for (let i = 0; i < files.length; i += BATCH_SIZE) batches.push(files.slice(i, i + BATCH_SIZE));
@@ -111,9 +106,6 @@ async function processJobAsync(jobId: string) {
       status:    'complete',
     }).where('id', '=', jobId).execute();
 
-    // Clean up stored image data
-    await db.deleteFrom('scan_job_files').where('job_id', '=', jobId).execute();
-
     console.log(`✅ Job ${jobId}: ${processed} processed, ${failed} failed`);
   } catch (err) {
     console.error(`❌ Job ${jobId} failed:`, err);
@@ -130,17 +122,19 @@ router.post('/', upload.array('images', MAX_BATCH), async (req: Request, res: Re
     if (!files?.length)           return res.status(400).json({ error: 'No image files provided' });
     if (files.length > MAX_BATCH) return res.status(400).json({ error: `Max ${MAX_BATCH} photos at a time` });
 
-    const jobId = randomUUID();
+    const jobId   = randomUUID();
+    const memFiles: ScanFile[] = files.map(f => ({
+      filename: f.originalname,
+      mime:     f.mimetype,
+      data:     f.buffer.toString('base64'),
+    }));
 
     await db.insertInto('scan_jobs').values({ id: jobId, user_id: userId, total: files.length }).execute();
-    await db.insertInto('scan_job_files')
-      .values(files.map(f => ({ job_id: jobId, filename: f.originalname, mime: f.mimetype, data: f.buffer.toString('base64') })))
-      .execute();
 
-    // Respond immediately — process in background on Railway
+    // Respond immediately — files stay in memory, no DB round-trip needed
     res.json({ jobId, total: files.length });
 
-    setImmediate(() => processJobAsync(jobId).catch(err => console.error('Uncaught processJobAsync:', err)));
+    setImmediate(() => processJobAsync(jobId, memFiles).catch(err => console.error('Uncaught processJobAsync:', err)));
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error('❌ Batch scan error:', msg);
