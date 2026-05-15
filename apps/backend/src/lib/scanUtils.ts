@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
-import { GEMINI_MODEL, CLASSIFY_PROMPT } from '../constants/constants.js';
+import { GEMINI_MODEL, CLASSIFY_PROMPT, buildBatchPrompt } from '../constants/constants.js';
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -30,10 +30,13 @@ export interface ItemClassification {
 }
 
 function parseJSON<T>(raw: string): T {
-  const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
-  const start = cleaned.indexOf('{');
-  const end   = cleaned.lastIndexOf('}');
-  if (start === -1 || end === -1) throw new Error(`No JSON found in response`);
+  const cleaned  = raw.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
+  const objStart = cleaned.indexOf('{');
+  const arrStart = cleaned.indexOf('[');
+  const start    = objStart === -1 ? arrStart : arrStart === -1 ? objStart : Math.min(objStart, arrStart);
+  if (start === -1) throw new Error('No JSON found in response');
+  const end = cleaned[start] === '[' ? cleaned.lastIndexOf(']') : cleaned.lastIndexOf('}');
+  if (end === -1) throw new Error('No JSON found in response');
   return JSON.parse(cleaned.slice(start, end + 1)) as T;
 }
 
@@ -65,11 +68,35 @@ export async function classifyItem(imageBuffer: Buffer, mimeType: string): Promi
         { text: CLASSIFY_PROMPT },
       ]}],
     });
-    // Hard cap per attempt — prevents Gemini connection hangs from blocking forever
     const timeout = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error('Gemini timeout')), 40_000)
     );
     return Promise.race([call, timeout]);
   });
   return parseJSON<ItemClassification>(response.text ?? '');
+}
+
+// Send all images in a single Gemini call — 1 round-trip for up to 5 images.
+export async function classifyBatch(
+  files: Array<{ data: string; mime: string }>
+): Promise<ItemClassification[]> {
+  const parts = [
+    ...files.map(f => ({ inlineData: { mimeType: f.mime, data: f.data } })),
+    { text: buildBatchPrompt(files.length) },
+  ];
+  const response = await withRetry(() => {
+    const call = ai.models.generateContent({
+      model:    GEMINI_MODEL,
+      contents: [{ role: 'user', parts }],
+    });
+    // Longer timeout for batch — more images = more tokens to generate
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Gemini timeout')), 90_000)
+    );
+    return Promise.race([call, timeout]);
+  });
+  const results = parseJSON<ItemClassification[]>(response.text ?? '');
+  if (!Array.isArray(results)) throw new Error('Expected JSON array from batch classify');
+  if (results.length !== files.length) throw new Error(`Expected ${files.length} results, got ${results.length}`);
+  return results;
 }
