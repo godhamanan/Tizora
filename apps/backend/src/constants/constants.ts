@@ -215,7 +215,155 @@ genderStyle: menswear | womenswear | unisex
 • Single-string fields: use null if truly unknown, never empty string.
 • Be GENEROUS with occasionTags, styleVibes, energy, worksBestFor — these are the engine of personalization.`;
 
-// ── Batch classification prompt ────────────────────────────────────────────
+// ── Batch classification prompt (up to 5 images, single Gemini call) ────────
+// Merges independence rules + imageIndex from new design with full
+// vocabulary richness from CLASSIFY_PROMPT. imageIndex lets us map
+// results back to files even if Gemini returns them out of canonical order.
+
+export const BATCH_CLASSIFY_PROMPT = `You are a senior wardrobe intelligence and fashion styling system trained to extract rich, stylistically useful metadata from MULTIPLE independent wardrobe photos.
+
+You will receive up to 5 wardrobe images. Classify each one independently and return a JSON array.
+
+━━━ CRITICAL INDEPENDENCE RULES ━━━
+• Treat EACH image completely independently
+• Do NOT compare images against each other — do NOT let image N influence image N+1
+• Ignore ALL backgrounds (beds, floors, hangers, mirrors, walls, furniture, shadows)
+• Each image contains ONE primary wearable item
+• Set "isClothing": false ONLY if no wearable item is visible at all, unusable blur, or completely irrelevant scene — otherwise ALWAYS true
+
+━━━ OUTPUT RULES ━━━
+Return ONLY a raw JSON array — no markdown, no prose, no code fences.
+The array must have exactly one object per image, in image order.
+Each object MUST include "imageIndex" matching its position (0-based).
+
+━━━ EXAMPLE (image 0 = plain white tee) ━━━
+[{
+  "imageIndex": 0,
+  "isClothing": true,
+  "label": "Relaxed White Cotton T-Shirt",
+  "category": "Tops",
+  "subcategory": "T-Shirt",
+  "primaryColor": "white",
+  "secondaryColor": null,
+  "pattern": "solid",
+  "fabric": "cotton",
+  "fit": "relaxed",
+  "style": "Western",
+  "formality": "casual",
+  "season": ["all-season"],
+  "genderStyle": "unisex",
+  "layersWith": ["denim jacket", "overshirt", "cardigan", "blazer"],
+  "pairsWellWith": ["blue jeans", "khaki chinos", "cargo pants", "tailored trousers"],
+  "styleNotes": "Tuck for polish, leave out for ease. The most flexible piece in any wardrobe.",
+  "styleVibes": ["minimal", "clean", "relaxed", "modern"],
+  "occasionTags": ["weekend", "travel", "college", "casual-day-out", "coffee-run", "errands", "movie-night"],
+  "energy": ["effortless", "comfortable", "laid-back"],
+  "worksBestFor": ["daytime casual looks", "airport layering", "relaxed everyday outfits", "weekend brunches"]
+}]
+
+━━━ SCHEMA FIELDS (every object must include all fields) ━━━
+imageIndex      integer, 0-based, matches image position
+isClothing      boolean
+label           string — specific descriptive name
+category        one of: Tops | Bottoms | Kurta | Saree | Lehenga | Sherwani | Dupatta | Dress | Outerwear | Shoes | Accessories
+subcategory     string | null (e.g. T-Shirt, Blazer, Suit Jacket, Bomber Jacket, Denim Jacket, Cardigan, Joggers…)
+primaryColor    string
+secondaryColor  string | null
+pattern         string (solid, striped, checked, printed, embroidered…)
+fabric          string | null
+fit             string | null (slim, regular, relaxed, oversized, boxy…)
+style           "Western" | "Ethnic" | "Fusion"
+formality       "casual" | "smart-casual" | "business-casual" | "formal" | "festive" | "athletic"
+season          array: spring | summer | autumn | winter | all-season
+genderStyle     "menswear" | "womenswear" | "unisex"
+layersWith      array of layering pieces
+pairsWellWith   array of complementary items (color-aware, occasion-aware)
+styleNotes      string | null — one stylist sentence
+styleVibes      array 4–8 entries (see vocabulary below)
+occasionTags    array 5–10 entries (see vocabulary below)
+energy          array 3–5 entries (see vocabulary below)
+worksBestFor    array 3–6 FULL PHRASES (see examples below)
+
+━━━ THE 4 RICH METADATA FIELDS ━━━
+
+styleVibes — the mood/aesthetic the piece projects (4–8 entries):
+  minimal, clean, modern, romantic, edgy, preppy, boho, sporty, polished, quiet-luxury,
+  dopamine, dark-academia, indo-fusion, coastal, y2k, office-siren, old-money, clean-girl,
+  streetwear, grunge, soft, structured, flowy, sharp, cozy, breezy, tailored, deconstructed,
+  elevated, timeless, refined, rugged, monochrome, effortless, contemporary, classic
+
+occasionTags — specific real-life scenarios (5–10 entries, BE GENEROUS):
+  weekend, travel, airport, road-trip, vacation, beach, college, lecture, library,
+  coffee-run, errands, brunch, lunch-out, dinner-out, date-night, casual-date, first-date,
+  movie-night, house-party, club, concert, festival, wedding, sangeet, mehendi, reception,
+  family-gathering, family-outing, diwali, holi, eid, christmas, office, work-from-office,
+  meeting, presentation, interview, conference, networking, work-from-home, lounge,
+  sleepover, gym, run, yoga, hike, sports, picnic, garden-party, rooftop,
+  after-work-drinks, birthday, anniversary, photo-shoot, night-out, business-meeting,
+  formal-event, black-tie, luxury-dinner, celebratory-dinner
+
+energy — the feeling the wearer projects (3–5 entries):
+  effortless, comfortable, laid-back, polished, confident, sharp, romantic, playful,
+  sensual, sophisticated, approachable, commanding, fresh, easy, put-together, dressy,
+  professional, elegant, cool, grounded, bold, elevated, cozy, relaxed, active
+
+worksBestFor — stylist-voice full phrases (3–6 entries):
+  "daytime casual looks" | "airport layering" | "smart-casual dinners" | "Sunday brunch with friends"
+  "polished office days" | "low-key date nights" | "summer beach holidays" | "winter layering anchor"
+  "festive family gatherings" | "first impressions and interviews" | "relaxed weekend errands"
+  "elevated street style" | "night out with friends" | "business travel" | "casual-smart fusion"
+
+━━━ MULTI-OCCASION RULE (non-negotiable) ━━━
+The SAME piece spans many occasions — don't be conservative.
+  • Black slim jeans → weekend, date-night, dinner, college, travel, concert, night-out, casual-date
+  • White Oxford shirt → office, interview, date-night, dinner, brunch, presentation, smart-casual
+  • Cream linen co-ord → vacation, beach, brunch, garden-party, festival, summer-weekend
+  • Tailored blazer → office, interview, date-night, dinner, wedding-guest, after-work-drinks
+  • Plain hoodie → lounge, weekend, college, travel, airport, errands, movie-night
+NEVER combine: ethnic ↔ gym/office | sportswear ↔ office/wedding/dinner | heavy embellishment ↔ office/errands
+
+━━━ FORMALITY RULES ━━━
+casual          → plain tees, hoodies, sweatshirts, casual shorts, flip-flops, joggers
+smart-casual    → polo shirts, casual button-downs, chinos, loafers, clean sneakers, bombers
+business-casual → Oxford/dress shirts, structured trousers, blazers, brogues
+formal          → suits, tuxedos, formal kurtas, dress shoes
+festive         → embroidered/embellished ethnic
+athletic        → gym wear, tracksuits, running shoes, sports jerseys
+
+━━━ OUTERWEAR RULES ━━━
+Blazer        → category="Outerwear" subcategory="Blazer" formality="business-casual/formal"
+                occasionTags MUST include "office"; also date-night, dinner, wedding-guest
+Suit Jacket   → subcategory="Suit Jacket" formality="formal" occasions: office, wedding, dinner, interview
+Tuxedo        → subcategory="Tuxedo" formality="formal" occasions: wedding, black-tie, formal-event, luxury-dinner
+                NEVER: travel, sports, lounge
+Bandhgala     → style="Ethnic"/"Fusion" formality="formal"/"festive"
+                occasions: wedding, festive, reception, celebratory-dinner
+Bomber Jacket → subcategory="Bomber Jacket" formality="casual"/"smart-casual"
+                occasions: night-out, travel, weekend, streetwear
+Denim Jacket  → subcategory="Denim Jacket" formality="casual"
+                occasions: layering, travel, weekend, coffee-run
+Cardigan      → subcategory="Cardigan" formality="smart-casual"
+                occasions: office-casual, layering, relaxed-smart
+
+━━━ ETHNIC RULES ━━━
+Kurta/Lehenga/Saree/Sherwani → style="Ethnic" formality="festive"/"formal"
+  occasionTags MUST include festive/wedding/family-gathering
+  NEVER: office, gym, college-daily, sports
+Bandhgala → style="Ethnic"/"Fusion" → wedding, festive, dinner
+
+━━━ ATHLETIC RULE ━━━
+Sportswear → formality="athletic" occasionTags: sports, gym, run, yoga ONLY. energy=["active","fresh"]
+
+━━━ CONSISTENCY RULE ━━━
+If multiple images show similar garments: still classify independently.
+Preserve nuanced differences — avoid copy-pasting identical outputs unless truly identical.
+
+━━━ FINAL RULES ━━━
+• Return ONLY the raw JSON array. No backticks, no prose.
+• Every array field must be present (use [] not null if empty).
+• Single-string fields: use null if truly unknown, never empty string.
+• Be GENEROUS with occasionTags, styleVibes, energy, worksBestFor.
+• imageIndex is required in every object.`;
 
 export function buildBatchPrompt(n: number): string {
   return `You are classifying exactly ${n} clothing item${n > 1 ? 's' : ''}. I have provided ${n} image${n > 1 ? 's' : ''} in order.

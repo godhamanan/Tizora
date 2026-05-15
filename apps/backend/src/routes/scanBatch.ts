@@ -4,7 +4,7 @@ import { randomUUID } from 'crypto';
 import { sql } from 'kysely';
 import sharp from 'sharp';
 import { db } from '../db.js';
-import { classifyItem } from '../lib/scanUtils.js';
+import { classifyBatch } from '../lib/scanUtils.js';
 
 const router = express.Router();
 const MAX_BATCH = 5;
@@ -16,13 +16,10 @@ const upload = multer({
 
 type ScanFile = { filename: string; mime: string; data: string };
 
-// ── Process up to CONCURRENCY images at once, each as an independent
-//    Gemini call with the proven CLASSIFY_PROMPT (not a batch prompt —
-//    batch single-call had quality issues with multi-image attention).
-//    Each result writes atomically to DB so the frontend sees them appear
-//    progressively as polling ticks. ──────────────────────────────────────
-const CONCURRENCY = 3;
-
+// ── Single Gemini call for all images using BATCH_CLASSIFY_PROMPT.
+//    Resize all images first (CPU, parallel), then one API call returns
+//    all classifications. imageIndex in each result ensures correct mapping
+//    even if Gemini returns results out of order. ─────────────────────────
 async function processJobAsync(jobId: string, files: ScanFile[]) {
   try {
     if (!files.length) {
@@ -30,10 +27,11 @@ async function processJobAsync(jobId: string, files: ScanFile[]) {
       return;
     }
 
-    // Resize all images first (CPU-bound, safe to parallelize fully)
+    // Resize all images in parallel (CPU-bound, no API calls)
     const resized = await Promise.all(
       files.map(async f => ({
         filename: f.filename,
+        mime:     'image/jpeg' as const,
         data:     (await sharp(Buffer.from(f.data, 'base64'))
           .rotate()
           .resize({ width: 900, height: 900, fit: 'inside', withoutEnlargement: true })
@@ -43,41 +41,32 @@ async function processJobAsync(jobId: string, files: ScanFile[]) {
       }))
     );
 
-    const processOne = async (idx: number): Promise<void> => {
-      const file = resized[idx];
-      try {
-        const classification = await classifyItem(Buffer.from(file.data, 'base64'), 'image/jpeg');
-        if (!classification?.isClothing) throw new Error('Not clothing');
+    // Single Gemini call for all images
+    const classifications = await classifyBatch(resized);
 
-        const scannedItem = { ...classification, image: `data:image/jpeg;base64,${file.data}` };
-        await sql`
-          UPDATE scan_jobs
-          SET results   = (results::jsonb || ${JSON.stringify([scannedItem])}::jsonb)::text,
-              processed = processed + 1
-          WHERE id = ${jobId}
-        `.execute(db);
-        console.log(`   ✅ [${file.filename}] ${classification.label}`);
-      } catch (err) {
+    // Write each result to DB
+    for (let i = 0; i < resized.length; i++) {
+      const classification = classifications[i];
+
+      if (!classification?.isClothing) {
         await sql`
           UPDATE scan_jobs
           SET processed = processed + 1,
               failed    = failed + 1
           WHERE id = ${jobId}
         `.execute(db);
-        const msg = err instanceof Error ? err.message : String(err);
-        console.warn(`   ⚠️  [${file.filename}] skipped — ${msg}`);
+        console.warn(`   ⚠️  [${resized[i].filename}] skipped — not clothing`);
+        continue;
       }
-    };
 
-    // Run in chunks so we never have more than CONCURRENCY Gemini calls
-    // in flight simultaneously — keeps us well under rate limits and gives
-    // each image full attention from a separate API call.
-    for (let i = 0; i < resized.length; i += CONCURRENCY) {
-      const indices = Array.from(
-        { length: Math.min(CONCURRENCY, resized.length - i) },
-        (_, k) => i + k,
-      );
-      await Promise.allSettled(indices.map(processOne));
+      const scannedItem = { ...classification, image: `data:image/jpeg;base64,${resized[i].data}` };
+      await sql`
+        UPDATE scan_jobs
+        SET results   = (results::jsonb || ${JSON.stringify([scannedItem])}::jsonb)::text,
+            processed = processed + 1
+        WHERE id = ${jobId}
+      `.execute(db);
+      console.log(`   ✅ [${resized[i].filename}] ${classification.label}`);
     }
 
     await db.updateTable('scan_jobs').set({ status: 'complete' }).where('id', '=', jobId).execute();

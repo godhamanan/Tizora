@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
-import { GEMINI_MODEL, CLASSIFY_PROMPT } from '../constants/constants.js';
+import { GEMINI_MODEL, CLASSIFY_PROMPT, BATCH_CLASSIFY_PROMPT } from '../constants/constants.js';
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -76,36 +76,49 @@ export async function classifyItem(imageBuffer: Buffer, mimeType: string): Promi
   return parseJSON<ItemClassification>(response.text ?? '');
 }
 
-// Send all images in a single Gemini call — 1 round-trip for up to 5 images.
+// Raw shape Gemini returns for batch — includes imageIndex we strip before returning
+type BatchRaw = ItemClassification & { imageIndex?: number };
+
+// Single Gemini call for all images. Uses BATCH_CLASSIFY_PROMPT which:
+//  • has explicit independence rules (no cross-image contamination)
+//  • requires imageIndex in every result so we can re-order safely
+//  • embeds full CLASSIFY_PROMPT vocabulary for classification quality
 export async function classifyBatch(
   files: Array<{ data: string; mime: string }>
 ): Promise<ItemClassification[]> {
   const parts = [
     ...files.map(f => ({ inlineData: { mimeType: f.mime, data: f.data } })),
-    { text: `${CLASSIFY_PROMPT}
-
----
-I have provided ${files.length} images above. Apply the exact classification schema above to EACH image independently, in order.
-Return a JSON ARRAY of exactly ${files.length} objects (one per image) following the schema above.
-If an image has no wearable item set "isClothing":false for that entry — do not skip it.
-Return ONLY the raw JSON array. No markdown, no prose, no code fences.` },
+    { text: BATCH_CLASSIFY_PROMPT },
   ];
   const response = await withRetry(() => {
     const call = ai.models.generateContent({
       model:    GEMINI_MODEL,
       contents: [{ role: 'user', parts }],
     });
-    // Longer timeout for batch — more images = more tokens to generate
     const timeout = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error('Gemini timeout')), 120_000)
     );
     return Promise.race([call, timeout]);
   });
-  const results = parseJSON<ItemClassification[]>(response.text ?? '');
-  if (!Array.isArray(results)) throw new Error('Expected JSON array from batch classify');
-  if (results.length !== files.length) {
-    console.warn(`Gemini returned ${results.length} results for ${files.length} images — processing what we got`);
+
+  const raw = parseJSON<BatchRaw[]>(response.text ?? '');
+  if (!Array.isArray(raw)) throw new Error('Expected JSON array from batch classify');
+
+  if (raw.length !== files.length) {
+    console.warn(`Gemini returned ${raw.length} results for ${files.length} images — mapping by imageIndex`);
   }
-  // Caller iterates over files.length; undefined entries for missing results are treated as failed
-  return results;
+
+  // Map results back to file positions using imageIndex.
+  // Falls back to array position if imageIndex is missing.
+  // Slots with no matching result stay undefined → caller treats as failed (?.isClothing).
+  const mapped = new Array<ItemClassification | undefined>(files.length);
+  for (const item of raw) {
+    const idx = typeof item.imageIndex === 'number' ? item.imageIndex : raw.indexOf(item);
+    if (idx >= 0 && idx < files.length) {
+      const { imageIndex: _i, ...rest } = item;
+      mapped[idx] = rest;
+    }
+  }
+
+  return mapped as ItemClassification[];
 }
