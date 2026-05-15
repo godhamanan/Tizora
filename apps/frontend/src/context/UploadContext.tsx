@@ -24,12 +24,10 @@ interface UploadState {
   batchItems:    ReviewItem[];
   batchProgress: BatchProgress | null;
   batchJobId:    string | null;
-  runId:         string | null;
-  publicToken:   string | null;
-  savedCount:     number;
-  notice:         string | null;
-  batchPreviews:  string[];
-  fileRef:        React.RefObject<HTMLInputElement>;
+  savedCount:    number;
+  notice:        string | null;
+  batchPreviews: string[];
+  fileRef:       React.RefObject<HTMLInputElement>;
 
   setStep:          (s: Step)                 => void;
   setPath:          (p: Path)                 => void;
@@ -37,8 +35,6 @@ interface UploadState {
   setBatchItems:    React.Dispatch<React.SetStateAction<ReviewItem[]>>;
   setBatchProgress: (p: BatchProgress | null) => void;
   setBatchJobId:    (id: string | null)       => void;
-  setRunId:         (id: string | null)       => void;
-  setPublicToken:   (t: string | null)        => void;
   setSavedCount:    (n: number)               => void;
   setNotice:        (n: string | null)        => void;
   setBatchPreviews: (p: string[])             => void;
@@ -54,11 +50,9 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
   const [batchItems,    setBatchItems]    = useState<ReviewItem[]>([]);
   const [batchProgress, setBatchProgress] = useState<BatchProgress | null>(null);
   const [batchJobId,    setBatchJobId]    = useState<string | null>(null);
-  const [runId,         setRunId]         = useState<string | null>(null);
-  const [publicToken,   setPublicToken]   = useState<string | null>(null);
-  const [savedCount,     setSavedCount]     = useState(0);
-  const [notice,         setNotice]         = useState<string | null>(null);
-  const [batchPreviews,  setBatchPreviews]  = useState<string[]>([]);
+  const [savedCount,    setSavedCount]    = useState(0);
+  const [notice,        setNotice]        = useState<string | null>(null);
+  const [batchPreviews, setBatchPreviews] = useState<string[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
   function reset() {
@@ -68,8 +62,6 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     setBatchItems([]);
     setBatchProgress(null);
     setBatchJobId(null);
-    setRunId(null);
-    setPublicToken(null);
     setSavedCount(0);
     setNotice(null);
     setBatchPreviews([]);
@@ -79,9 +71,9 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
   return (
     <UploadContext.Provider value={{
       step, path, reviewItem, batchItems, batchProgress,
-      batchJobId, runId, publicToken, savedCount, notice, batchPreviews, fileRef,
+      batchJobId, savedCount, notice, batchPreviews, fileRef,
       setStep, setPath, setReviewItem, setBatchItems, setBatchProgress,
-      setBatchJobId, setRunId, setPublicToken, setSavedCount, setNotice, setBatchPreviews,
+      setBatchJobId, setSavedCount, setNotice, setBatchPreviews,
       reset,
     }}>
       {children}

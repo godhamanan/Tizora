@@ -1,6 +1,5 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useRealtimeRun } from '@trigger.dev/react-hooks';
 import { scanImage, saveClothingItem } from '../api/client';
 import type { ScannedItem } from '../types/index';
 import { CATEGORIES } from '../types/index';
@@ -10,6 +9,7 @@ import './Upload.css';
 
 const MAX_BATCH = 5;
 const PENDING_KEY = 'tizora_pending_batch';
+const POLL_MS = 2500;
 
 function toReviewItem(item: ScannedItem): ReviewItem {
   return {
@@ -33,8 +33,6 @@ export default function Upload() {
     batchItems, setBatchItems,
     batchProgress, setBatchProgress,
     batchJobId, setBatchJobId,
-    runId, setRunId,
-    publicToken, setPublicToken,
     savedCount, setSavedCount,
     notice, setNotice,
     batchPreviews, setBatchPreviews,
@@ -44,93 +42,60 @@ export default function Upload() {
 
   const stepIndex = ['choose', 'drop', 'reading', 'meet'].indexOf(step);
 
-  // ── Realtime subscription ─────────────────────────────────────────────────
-  const { run } = useRealtimeRun(runId ?? '', {
-    accessToken: publicToken ?? '',
-    enabled:     !!runId && !!publicToken,
-  });
+  // ── Poll job status every POLL_MS until complete ──────────────────────────
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // ── Fetch current items from DB whenever Trigger.dev signals progress ─────
-  const fetchItems = useCallback(async (jobId: string) => {
-    try {
-      const res = await fetch(`/api/scan/batch/${jobId}`, { credentials: 'include' });
-      if (!res.ok) return;
-      const job = await res.json() as {
-        status: string; total: number; processed: number; failed: number; results: string;
-      };
-      const items: ReviewItem[] = JSON.parse(job.results ?? '[]').map(toReviewItem);
-      setBatchProgress({ current: job.processed, total: job.total, failed: job.failed });
-      setBatchItems(items);
-      if (items.length > 0) {
-        setStep('meet');
-        localStorage.removeItem(PENDING_KEY);
-      }
-    } catch { /* ignore transient errors */ }
-  }, [setBatchProgress, setBatchItems, setStep]);
-
-  // ── React to Trigger.dev signals ──────────────────────────────────────────
   useEffect(() => {
-    if (!run || !batchJobId) return;
-
-    const meta = run.metadata as { processed?: number; total?: number; failed?: number } | undefined;
-    const serverProcessed = meta?.processed ?? 0;
-
-    if (meta?.total && (!batchProgress || batchProgress.total === 0)) {
-      setBatchProgress({
-        current: batchProgress?.current ?? 0,
-        total:   meta.total!,
-        failed:  batchProgress?.failed  ?? 0,
-      });
+    if (!batchJobId || path !== 'batch' || step !== 'meet') {
+      if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
+      return;
     }
 
-    if (serverProcessed > batchItems.length) fetchItems(batchJobId);
+    async function poll() {
+      try {
+        const res = await fetch(`/api/scan/batch/${batchJobId}`, { credentials: 'include' });
+        if (!res.ok) return;
+        const job = await res.json() as {
+          status: string; total: number; processed: number; failed: number; results: string;
+        };
 
-    if (run.status === 'COMPLETED' || run.status === 'FAILED' || run.status === 'CRASHED') {
-      fetchItems(batchJobId).then(() => {
-        setBatchItems(prev => {
-          if (prev.length === 0) {
-            setNotice('Nothing we could read in there. Try clearer photos?');
+        setBatchProgress({ current: job.processed, total: job.total, failed: job.failed ?? 0 });
+
+        const items: ReviewItem[] = JSON.parse(job.results ?? '[]').map(toReviewItem);
+        if (items.length > 0) setBatchItems(items);
+
+        if (job.status === 'complete' || job.status === 'failed') {
+          if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
+          localStorage.removeItem(PENDING_KEY);
+          if (items.length === 0) {
+            setNotice('Nothing we could read. Try clearer photos?');
             setStep('drop');
           }
-          return prev;
-        });
-      });
-      setRunId(null);
-      setPublicToken(null);
+        }
+      } catch { /* ignore transient network errors */ }
     }
-  }, [run?.metadata, run?.status, batchJobId, batchItems.length, batchProgress,
-      fetchItems, setBatchProgress, setBatchItems, setNotice, setStep, setRunId, setPublicToken]);
+
+    pollingRef.current = setInterval(poll, POLL_MS);
+    poll(); // immediate first check
+
+    return () => {
+      if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [batchJobId, path, step]);
 
   // ── On mount: resume any pending batch job from localStorage ─────────────
   useEffect(() => {
-    // If state is already live (user navigated away and back), don't reset
     if (step !== 'choose' || batchJobId) return;
-
     const stored = localStorage.getItem(PENDING_KEY);
     if (!stored) return;
     try {
-      const { jobId, runId: storedRunId, publicToken: storedToken, createdAt } = JSON.parse(stored);
+      const { jobId, createdAt } = JSON.parse(stored);
       if (Date.now() - createdAt < 4 * 60 * 60 * 1000) {
         setBatchJobId(jobId);
-        setRunId(storedRunId);
-        setPublicToken(storedToken);
         setPath('batch');
-        setStep('reading');
-        fetch(`/api/scan/batch/${jobId}`, { credentials: 'include' })
-          .then(r => r.ok ? r.json() : null)
-          .then((job: any) => {
-            if (!job) return;
-            setBatchProgress({ current: job.processed, total: job.total, failed: job.failed ?? 0 });
-            const items: ReviewItem[] = JSON.parse(job.results ?? '[]').map(toReviewItem);
-            if (items.length > 0) {
-              setBatchItems(items);
-              if (job.status === 'complete') {
-                setStep('meet');
-                localStorage.removeItem(PENDING_KEY);
-              }
-            }
-          })
-          .catch(() => {});
+        setStep('meet');
+        setBatchProgress({ current: 0, total: 0, failed: 0 });
       } else {
         localStorage.removeItem(PENDING_KEY);
       }
@@ -171,15 +136,12 @@ export default function Upload() {
     if (images.length === 0) { setNotice('Please select image files (JPG, PNG, or WEBP).'); return; }
     if (images.length > MAX_BATCH) { setNotice(`You can upload up to ${MAX_BATCH} photos at a time.`); return; }
 
-    // Create local previews immediately so the grid shows before scan completes
     const previews = images.map(f => URL.createObjectURL(f));
     setBatchPreviews(previews);
     setBatchItems([]);
     setBatchJobId(null);
-    setRunId(null);
-    setPublicToken(null);
     setBatchProgress({ current: 0, total: images.length, failed: 0 });
-    setStep('meet');  // go straight to interactive grid
+    setStep('meet');
     setPath('batch');
 
     const formData = new FormData();
@@ -188,13 +150,9 @@ export default function Upload() {
     try {
       const res = await fetch('/api/scan/batch', { method: 'POST', credentials: 'include', body: formData });
       if (!res.ok) throw new Error(`Server error ${res.status}`);
-      const data = await res.json() as { jobId: string; runId: string; publicToken: string; total: number };
-      localStorage.setItem(PENDING_KEY, JSON.stringify({
-        jobId: data.jobId, runId: data.runId, publicToken: data.publicToken, createdAt: Date.now(),
-      }));
+      const data = await res.json() as { jobId: string; total: number };
+      localStorage.setItem(PENDING_KEY, JSON.stringify({ jobId: data.jobId, createdAt: Date.now() }));
       setBatchJobId(data.jobId);
-      setRunId(data.runId);
-      setPublicToken(data.publicToken);
     } catch (err) {
       setNotice(err instanceof Error ? err.message : 'Upload failed. Try again?');
       setStep('drop');
@@ -259,7 +217,7 @@ export default function Upload() {
     setStep('welcomed');
   }
 
-  const isStillScanning = path === 'batch' && !!runId && step === 'meet' &&
+  const isStillScanning = path === 'batch' && !!batchJobId && step === 'meet' &&
     (batchProgress?.current ?? 0) < (batchProgress?.total ?? 0);
 
   // ── STEP RENDERERS ────────────────────────────────────────────────────────
@@ -373,7 +331,6 @@ export default function Upload() {
         </div>
       )}
 
-
       {/* MEET — single */}
       {step === 'meet' && path === 'single' && reviewItem && (
         <div className="upload-step animate-fade">
@@ -435,7 +392,6 @@ export default function Upload() {
           </div>
 
           <div className="upload-batch-grid">
-            {/* Classified cards */}
             {batchItems.map((item, i) => (
               <BatchCard
                 key={`done-${i}`}
@@ -444,7 +400,6 @@ export default function Upload() {
                 onUpdate={(field, value) => setBatchItems(prev => prev.map((it, idx) => idx === i ? { ...it, [field]: value } : it))}
               />
             ))}
-            {/* Scanning placeholder cards */}
             {Array.from({ length: Math.max(0, (batchProgress?.total ?? 0) - batchItems.length) }).map((_, i) => (
               <ScanningCard key={`scanning-${i}`} preview={batchPreviews[batchItems.length + i]} />
             ))}
