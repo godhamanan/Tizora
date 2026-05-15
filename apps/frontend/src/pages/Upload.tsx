@@ -138,7 +138,19 @@ export default function Upload() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function openPicker() { fileRef.current?.click(); }
+  function openPicker(mode: Path) {
+    const input = fileRef.current;
+    if (!input) return;
+    if (mode === 'single') {
+      input.setAttribute('capture', 'environment');
+      input.removeAttribute('multiple');
+    } else {
+      input.removeAttribute('capture');
+      input.setAttribute('multiple', 'multiple');
+    }
+    setPath(mode);
+    input.click();
+  }
 
   async function handleSingle(file: File) {
     setStep('reading');
@@ -294,8 +306,6 @@ export default function Upload() {
         ref={fileRef}
         type="file"
         accept="image/*"
-        capture={path === 'single' ? 'environment' : undefined}
-        multiple={path === 'batch'}
         style={{ display: 'none' }}
         onChange={e => {
           const files = Array.from(e.target.files ?? []);
@@ -316,7 +326,7 @@ export default function Upload() {
           {notice && <p className="notice" style={{ marginTop: 'var(--s-4)' }}>{notice}</p>}
 
           <div className="upload-paths" style={{ marginTop: 'var(--s-8)' }}>
-            <button className="upload-path" onClick={() => { setPath('single'); openPicker(); }}>
+            <button className="upload-path" onClick={() => openPicker('single')}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
                 <circle cx="12" cy="13" r="4"/>
@@ -327,7 +337,7 @@ export default function Upload() {
               </div>
               <span className="upload-path-arrow">→</span>
             </button>
-            <button className="upload-path" onClick={() => { setPath('batch'); openPicker(); }}>
+            <button className="upload-path" onClick={() => openPicker('batch')}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
                 <polyline points="21 15 16 10 5 21"/>
