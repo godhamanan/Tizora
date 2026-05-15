@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
-import { GEMINI_MODEL, CLASSIFY_PROMPT, buildBatchPrompt } from '../constants/constants.js';
+import { GEMINI_MODEL, CLASSIFY_PROMPT } from '../constants/constants.js';
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -82,7 +82,13 @@ export async function classifyBatch(
 ): Promise<ItemClassification[]> {
   const parts = [
     ...files.map(f => ({ inlineData: { mimeType: f.mime, data: f.data } })),
-    { text: buildBatchPrompt(files.length) },
+    { text: `${CLASSIFY_PROMPT}
+
+---
+I have provided ${files.length} images above. Apply the exact classification schema above to EACH image independently, in order.
+Return a JSON ARRAY of exactly ${files.length} objects (one per image) following the schema above.
+If an image has no wearable item set "isClothing":false for that entry — do not skip it.
+Return ONLY the raw JSON array. No markdown, no prose, no code fences.` },
   ];
   const response = await withRetry(() => {
     const call = ai.models.generateContent({
