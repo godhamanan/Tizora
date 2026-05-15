@@ -27,6 +27,11 @@ async function processJobAsync(jobId: string, files: ScanFile[]) {
       return;
     }
 
+    // Delete stale jobs (>2h old) — prevents DB bloat from abandoned scans
+    await db.deleteFrom('scan_jobs')
+      .where('created_at', '<', new Date(Date.now() - 2 * 60 * 60 * 1000))
+      .execute();
+
     // Resize all images in parallel (CPU-bound, no API calls)
     const resized = await Promise.all(
       files.map(async f => ({
