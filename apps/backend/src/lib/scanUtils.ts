@@ -57,12 +57,19 @@ async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 5): Promise<T> {
 
 export async function classifyItem(imageBuffer: Buffer, mimeType: string): Promise<ItemClassification> {
   const base64   = imageBuffer.toString('base64');
-  const response = await withRetry(() => ai.models.generateContent({
-    model:    GEMINI_MODEL,
-    contents: [{ role: 'user', parts: [
-      { inlineData: { mimeType, data: base64 } },
-      { text: CLASSIFY_PROMPT },
-    ]}],
-  }));
+  const response = await withRetry(() => {
+    const call = ai.models.generateContent({
+      model:    GEMINI_MODEL,
+      contents: [{ role: 'user', parts: [
+        { inlineData: { mimeType, data: base64 } },
+        { text: CLASSIFY_PROMPT },
+      ]}],
+    });
+    // Hard cap per attempt — prevents Gemini connection hangs from blocking forever
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Gemini timeout')), 40_000)
+    );
+    return Promise.race([call, timeout]);
+  });
   return parseJSON<ItemClassification>(response.text ?? '');
 }

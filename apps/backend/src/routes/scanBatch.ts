@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import multer from 'multer';
 import { randomUUID } from 'crypto';
 import { sql } from 'kysely';
+import sharp from 'sharp';
 import { db } from '../db.js';
 import { classifyItem } from '../lib/scanUtils.js';
 
@@ -15,9 +16,10 @@ const upload = multer({
 
 type ScanFile = { filename: string; mime: string; data: string };
 
-// ── Process each image individually in parallel.
-//    As each one finishes, append result atomically to scan_jobs.results
-//    so the frontend's polling sees images appear one by one. ─────────────
+// ── Process images one at a time so we never hammer Gemini with parallel
+//    requests (which causes rate-limit pile-ups and silent hangs).
+//    Each result is written immediately so the frontend sees items appear
+//    progressively as polling ticks. ──────────────────────────────────────
 async function processJobAsync(jobId: string, files: ScanFile[]) {
   try {
     if (!files.length) {
@@ -25,43 +27,44 @@ async function processJobAsync(jobId: string, files: ScanFile[]) {
       return;
     }
 
-    await Promise.allSettled(
-      files.map(async (file, idx) => {
-        // Stagger starts by 500ms each — avoids hitting Gemini in lockstep
-        if (idx > 0) await new Promise(r => setTimeout(r, idx * 500));
+    for (const file of files) {
+      try {
+        // Resize to 900 px before sending to Gemini — same as single-upload.
+        // Bakes EXIF orientation in and reduces payload from ~8 MB to ~200 KB.
+        const resized = await sharp(Buffer.from(file.data, 'base64'))
+          .rotate()
+          .resize({ width: 900, height: 900, fit: 'inside', withoutEnlargement: true })
+          .jpeg({ quality: 82 })
+          .toBuffer();
 
-        try {
-          const buffer         = Buffer.from(file.data, 'base64');
-          const classification = await classifyItem(buffer, file.mime);
+        const classification = await classifyItem(resized, 'image/jpeg');
 
-          if (!classification?.isClothing) throw new Error('Not clothing');
+        if (!classification?.isClothing) throw new Error('Not clothing');
 
-          const scannedItem = {
-            ...classification,
-            image: `data:${file.mime};base64,${file.data}`,
-          };
+        const scannedItem = {
+          ...classification,
+          image: `data:image/jpeg;base64,${resized.toString('base64')}`,
+        };
 
-          // Atomic append using Postgres jsonb concatenation — no race conditions
-          await sql`
-            UPDATE scan_jobs
-            SET results   = (results::jsonb || ${JSON.stringify([scannedItem])}::jsonb)::text,
-                processed = processed + 1
-            WHERE id = ${jobId}
-          `.execute(db);
+        await sql`
+          UPDATE scan_jobs
+          SET results   = (results::jsonb || ${JSON.stringify([scannedItem])}::jsonb)::text,
+              processed = processed + 1
+          WHERE id = ${jobId}
+        `.execute(db);
 
-          console.log(`   ✅ [${file.filename}] ${classification.label}`);
-        } catch (err) {
-          await sql`
-            UPDATE scan_jobs
-            SET processed = processed + 1,
-                failed    = failed + 1
-            WHERE id = ${jobId}
-          `.execute(db);
-          const msg = err instanceof Error ? err.message : String(err);
-          console.warn(`   ⚠️  [${file.filename}] skipped — ${msg}`);
-        }
-      })
-    );
+        console.log(`   ✅ [${file.filename}] ${classification.label}`);
+      } catch (err) {
+        await sql`
+          UPDATE scan_jobs
+          SET processed = processed + 1,
+              failed    = failed + 1
+          WHERE id = ${jobId}
+        `.execute(db);
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(`   ⚠️  [${file.filename}] skipped — ${msg}`);
+      }
+    }
 
     await db.updateTable('scan_jobs').set({ status: 'complete' }).where('id', '=', jobId).execute();
     console.log(`✅ Job ${jobId} complete`);
