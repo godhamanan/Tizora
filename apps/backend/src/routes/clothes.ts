@@ -75,6 +75,7 @@ router.post('/', async (req: Request, res: Response) => {
       if (!match) return res.status(400).json({ error: 'Invalid image_base64 format' });
       const raw     = Buffer.from(match[2], 'base64');
       const resized = await sharp(raw)
+        .rotate()  // apply EXIF orientation, then strip it — fixes sideways iPhone portraits
         .resize({ width: 900, height: 900, fit: 'inside', withoutEnlargement: true })
         .jpeg({ quality: 82 })
         .toBuffer();
