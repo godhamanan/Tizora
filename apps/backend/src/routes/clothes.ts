@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import { db } from '../db.js';
 import { uploadImage } from '../r2.js';
+import sharp from 'sharp';
 
 const router = express.Router();
 
@@ -67,14 +68,18 @@ router.post('/', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'name, category, color, and either image_base64 or image_url are required' });
     }
 
-    // Upload to R2 — images are never stored in the DB
+    // Upload to R2 — resize to max 900px wide before upload for fast rendering
     let finalImageUrl: string | null = image_url ?? null;
     if (image_base64) {
       const match = image_base64.match(/^data:([^;]+);base64,(.+)$/s);
       if (!match) return res.status(400).json({ error: 'Invalid image_base64 format' });
-      const buffer = Buffer.from(match[2], 'base64');
-      finalImageUrl = await uploadImage(buffer, match[1], (req as any).userId);
-      console.log(`☁️  Saved to R2: ${finalImageUrl}`);
+      const raw     = Buffer.from(match[2], 'base64');
+      const resized = await sharp(raw)
+        .resize({ width: 900, height: 900, fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: 82 })
+        .toBuffer();
+      finalImageUrl = await uploadImage(resized, 'image/jpeg', (req as any).userId);
+      console.log(`☁️  Saved to R2 (${Math.round(resized.length / 1024)}KB): ${finalImageUrl}`);
     }
 
     const inserted = await db

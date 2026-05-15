@@ -6,23 +6,21 @@ import { GEMINI_MODEL, buildBatchPrompt } from '../constants/constants.js';
 import dotenv from 'dotenv';
 dotenv.config();
 
-// ── How many images to send in one Gemini request ─────────────────────────
-// 5 is optimal: reliable parsing, halves API calls for a 10-image batch.
+// 5 images per Gemini call — reliable JSON parsing at this size.
+// Batches run in parallel so total time = one batch, not N batches.
 const GEMINI_BATCH_SIZE = 5;
 
 type ScanFile = { id: number; job_id: string; filename: string; mime: string; data: string };
 
 export const batchScanTask = task({
   id: 'batch-scan',
-  maxDuration: 300, // 5 min max
+  maxDuration: 300,
   run: async (payload: { jobId: string; userId: string }) => {
     const { jobId } = payload;
 
     const files = await db
-      .selectFrom('scan_job_files')
-      .selectAll()
-      .where('job_id', '=', jobId)
-      .where('processed', '=', false)
+      .selectFrom('scan_job_files').selectAll()
+      .where('job_id', '=', jobId).where('processed', '=', false)
       .execute();
 
     const total = files.length;
@@ -30,89 +28,73 @@ export const batchScanTask = task({
     metadata.set('processed', 0);
     metadata.set('failed',    0);
 
+    // ── Slice into batches ─────────────────────────────────────────────────
+    const batches: ScanFile[][] = [];
+    for (let i = 0; i < files.length; i += GEMINI_BATCH_SIZE) {
+      batches.push(files.slice(i, i + GEMINI_BATCH_SIZE));
+    }
+
+    // ── Run ALL batches in parallel ────────────────────────────────────────
+    const batchResults = await Promise.all(
+      batches.map(async (batch) => {
+        let classifications: (ItemClassification | null)[] = new Array(batch.length).fill(null);
+        try {
+          classifications = await classifyBatch(batch);
+        } catch (err) {
+          console.warn(`Gemini batch failed:`, err);
+        }
+        return { batch, classifications };
+      })
+    );
+
+    // ── Collect all results, then write to DB in two queries ───────────────
     let processed = 0;
     let failed    = 0;
+    const scannedItems: object[] = [];
+    const processedFileIds: number[] = [];
 
-    // ── Process in GEMINI_BATCH_SIZE groups ──────────────────────────────
-    for (let i = 0; i < files.length; i += GEMINI_BATCH_SIZE) {
-      const batch = files.slice(i, i + GEMINI_BATCH_SIZE);
-
-      let classifications: (ItemClassification | null)[] = new Array(batch.length).fill(null);
-      try {
-        classifications = await classifyBatch(batch);
-      } catch (batchErr) {
-        console.warn(`Gemini batch ${i}–${i + batch.length} failed:`, batchErr);
-      }
-
+    for (const { batch, classifications } of batchResults) {
       for (let j = 0; j < batch.length; j++) {
         const file           = batch[j];
         const classification = classifications[j];
 
-        try {
-          if (!classification?.isClothing) throw new Error('Not clothing');
-
-          // R2 upload happens at save time (POST /clothes), not here.
-          const scannedItem = {
+        if (classification?.isClothing) {
+          scannedItems.push({
             ...classification,
             image: `data:${file.mime};base64,${file.data}`,
-          };
-
-          // Append result to scan_jobs row so GET /scan/batch/:jobId returns it
-          const row = await db.selectFrom('scan_jobs')
-            .select(['results', 'processed'])
-            .where('id', '=', jobId)
-            .executeTakeFirst();
-
-          const results = JSON.parse(row?.results ?? '[]');
-          results.push(scannedItem);
-
+          });
           processed++;
-          await db.updateTable('scan_jobs').set({
-            results:   JSON.stringify(results),
-            processed: (row?.processed ?? 0) + 1,
-          }).where('id', '=', jobId).execute();
-
-          // Signal frontend — processed count bumped, frontend fetches new item from DB
-          metadata.set('processed', processed);
-          metadata.set('total',     total);
-
-          console.log(`   ✅ [${processed}/${total}] ${classification.label}`);
-        } catch {
+        } else {
           failed++;
           processed++;
-          const row = await db.selectFrom('scan_jobs')
-            .select(['processed', 'failed'])
-            .where('id', '=', jobId)
-            .executeTakeFirst();
-          await db.updateTable('scan_jobs').set({
-            processed: (row?.processed ?? 0) + 1,
-            failed:    (row?.failed    ?? 0) + 1,
-          }).where('id', '=', jobId).execute();
-          metadata.set('processed', processed);
-          metadata.set('failed',    failed);
-          console.warn(`   ⚠️  ${file.filename} skipped`);
+          console.warn(`   ⚠️  ${file.filename} skipped — not clothing`);
         }
-
-        await db.updateTable('scan_job_files')
-          .set({ processed: true })
-          .where('id', '=', file.id)
-          .execute();
+        processedFileIds.push(file.id);
       }
     }
 
-    await db.updateTable('scan_jobs')
-      .set({ status: 'complete' })
-      .where('id', '=', jobId)
-      .execute();
+    // Single UPDATE for all results
+    await db.updateTable('scan_jobs').set({
+      results:   JSON.stringify(scannedItems),
+      processed,
+      failed,
+      status:    'complete',
+    }).where('id', '=', jobId).execute();
 
+    // Single DELETE for all processed files
     await db.deleteFrom('scan_job_files').where('job_id', '=', jobId).execute();
+
+    // Signal frontend with final counts
+    metadata.set('processed', processed);
+    metadata.set('total',     total);
+    metadata.set('failed',    failed);
 
     console.log(`✅ Batch job ${jobId} complete — ${processed} processed, ${failed} failed`);
     return { processed, failed, total };
   },
 });
 
-// ── Send N images in one Gemini request ──────────────────────────────────
+// ── Send N images in one Gemini request ───────────────────────────────────
 
 async function classifyBatch(files: ScanFile[]): Promise<(ItemClassification | null)[]> {
   const n = files.length;
@@ -133,7 +115,6 @@ async function classifyBatch(files: ScanFile[]): Promise<(ItemClassification | n
   if (start === -1 || end === -1) throw new Error('No JSON array in Gemini batch response');
 
   const arr: (ItemClassification | null)[] = JSON.parse(cleaned.slice(start, end + 1));
-  // Ensure length matches — pad with nulls if model returned fewer
   while (arr.length < n) arr.push(null);
   return arr.slice(0, n);
 }
