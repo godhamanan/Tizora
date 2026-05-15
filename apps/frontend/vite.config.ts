@@ -57,6 +57,11 @@ export default defineConfig({
             },
           },
           {
+            // Auth endpoints — never cache, no timeout, always go to network
+            urlPattern: /\/api\/auth\/.*/i,
+            handler: 'NetworkOnly',
+          },
+          {
             // API calls — network first, fall back to cache
             urlPattern: /\/api\/.*/i,
             handler: 'NetworkFirst',
