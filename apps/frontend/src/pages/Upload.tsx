@@ -324,10 +324,18 @@ export default function Upload() {
       {/* READING — single */}
       {step === 'reading' && path === 'single' && (
         <div className="upload-step animate-fade upload-reading">
-          <div className="upload-reading-frame"><div className="upload-reading-line" /></div>
+          <div className="upload-reading-frame">
+            <div className="upload-scanner-corners"><span/><span/><span/><span/></div>
+            <div className="upload-scanner-line" />
+          </div>
           <div className="eyebrow upload-reading-eyebrow" style={{ color: 'var(--accent)' }}>— A moment, please</div>
           <h2 className="h2 upload-reading-title">Reading the colour, the cut,<br/>the way it falls.</h2>
-          <div className="dot-pulse upload-reading-dots"><span/><span/><span/></div>
+          <div className="upload-reading-stages">
+            <span className="upload-scanner-stage upload-scanner-stage--1">identifying garment</span>
+            <span className="upload-scanner-stage upload-scanner-stage--2">reading colour</span>
+            <span className="upload-scanner-stage upload-scanner-stage--3">detecting fabric</span>
+            <span className="upload-scanner-stage upload-scanner-stage--4">mapping style</span>
+          </div>
         </div>
       )}
 
@@ -474,11 +482,18 @@ function ScanningCard({ preview }: { preview?: string }) {
     <div className="upload-batch-card upload-batch-card--scanning">
       <div className="upload-batch-img">
         {preview
-          ? <img src={preview} alt="Scanning…" style={{ filter: 'brightness(0.7)' }} />
+          ? <img src={preview} alt="" />
           : <div className="skeleton" style={{ width: '100%', height: '100%' }} />
         }
         <div className="upload-scanning-overlay">
-          <div className="dot-pulse" style={{ '--dot-size': '6px' } as React.CSSProperties}><span/><span/><span/></div>
+          <div className="upload-scanner-corners"><span/><span/><span/><span/></div>
+          <div className="upload-scanner-line" />
+          <div className="upload-scanner-label">
+            <span className="upload-scanner-stage upload-scanner-stage--1">identifying garment</span>
+            <span className="upload-scanner-stage upload-scanner-stage--2">reading colour</span>
+            <span className="upload-scanner-stage upload-scanner-stage--3">detecting fabric</span>
+            <span className="upload-scanner-stage upload-scanner-stage--4">mapping style</span>
+          </div>
         </div>
       </div>
       <div className="upload-batch-meta">

@@ -105,22 +105,15 @@
 
 .upload-reading-frame {
   width: 70%;
-  max-width: 240px;
+  max-width: 260px;
   aspect-ratio: 1/1;
-  background: var(--bg-deep);
+  background:
+    radial-gradient(ellipse at center, rgba(139, 111, 71, 0.10) 0%, transparent 65%),
+    var(--bg-deep);
   border-radius: var(--r-md);
   position: relative;
   overflow: hidden;
   margin-bottom: var(--s-10);
-}
-.upload-reading-line {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  height: 1.5px;
-  background: linear-gradient(to right, transparent, var(--accent), transparent);
-  animation: scan-line 2s ease-in-out infinite;
 }
 
 .upload-reading-eyebrow { margin-bottom: var(--s-3); }
@@ -132,14 +125,17 @@
 }
 .upload-reading-title em { font-style: italic; }
 
-.upload-reading-meta {
-  margin-top: var(--s-4);
-  font-family: var(--serif);
-  font-style: italic;
+.upload-reading-stages {
+  position: relative;
+  margin-top: var(--s-6);
+  height: 16px;
+  width: 100%;
+  max-width: 280px;
 }
-
-.upload-reading-dots {
-  margin-top: var(--s-8);
+.upload-reading-stages .upload-scanner-stage {
+  color: var(--ink-3);
+  text-shadow: none;
+  font-size: var(--t-meta);
 }
 
 .upload-progress {
@@ -285,30 +281,104 @@
   border-color: var(--ink);
 }
 
-/* Scanning overlay */
+/* ═════════════════════════════════════════════════════════════════════
+   SCANNER OVERLAY — used in batch grid cards + single reading frame
+   Vertical scan-line sweep + cycling stage labels
+   ═════════════════════════════════════════════════════════════════════ */
 .upload-scanning-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(0,0,0,0.30);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  backdrop-filter: blur(1px);
+  background: linear-gradient(180deg,
+    rgba(20, 18, 16, 0.22) 0%,
+    rgba(20, 18, 16, 0.05) 35%,
+    rgba(20, 18, 16, 0.05) 65%,
+    rgba(20, 18, 16, 0.26) 100%
+  );
+  pointer-events: none;
   overflow: hidden;
 }
-/* Moving horizontal scanner line — reuses global @keyframes scan-line */
-.upload-scanning-overlay::before {
-  content: '';
+
+/* Corner viewfinder brackets — sits inside the frame */
+.upload-scanner-corners {
   position: absolute;
-  left: -10%;
-  right: -10%;
-  height: 2px;
-  background: linear-gradient(90deg, transparent 0%, var(--accent) 50%, transparent 100%);
-  box-shadow: 0 0 8px 2px var(--accent), 0 0 16px 4px rgba(var(--accent-rgb, 200,100,80), 0.4);
-  animation: scan-line 1.8s ease-in-out infinite;
-  z-index: 1;
+  inset: 8px;
+  pointer-events: none;
+  z-index: 2;
 }
-.upload-scanning-overlay > * { position: relative; z-index: 2; }
+.upload-scanner-corners span {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 0 solid rgba(250, 247, 242, 0.78);
+}
+.upload-scanner-corners span:nth-child(1) { top: 0;    left: 0;    border-top-width: 1.5px; border-left-width:  1.5px; }
+.upload-scanner-corners span:nth-child(2) { top: 0;    right: 0;   border-top-width: 1.5px; border-right-width: 1.5px; }
+.upload-scanner-corners span:nth-child(3) { bottom: 0; left: 0;    border-bottom-width: 1.5px; border-left-width:  1.5px; }
+.upload-scanner-corners span:nth-child(4) { bottom: 0; right: 0;   border-bottom-width: 1.5px; border-right-width: 1.5px; }
+
+/* The sweeping scan line — top → bottom → top, continuous */
+.upload-scanner-line {
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  height: 2px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(232, 220, 201, 0.45) 14%,
+    var(--accent) 50%,
+    rgba(232, 220, 201, 0.45) 86%,
+    transparent 100%
+  );
+  box-shadow:
+    0 0 6px 1px rgba(139, 111, 71, 0.85),
+    0 0 20px 4px rgba(139, 111, 71, 0.5),
+    0 0 40px 10px rgba(139, 111, 71, 0.22);
+  animation: scanner-sweep 2.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  z-index: 3;
+}
+
+@keyframes scanner-sweep {
+  0%   { top: 1%; }
+  50%  { top: calc(100% - 3px); }
+  100% { top: 1%; }
+}
+
+/* Cycling stage labels — four stacked spans, each fades in for ~2s */
+.upload-scanner-label {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  right: 10px;
+  height: 14px;
+  z-index: 4;
+}
+.upload-scanner-stage {
+  position: absolute;
+  inset: 0;
+  display: block;
+  text-align: center;
+  font-family: var(--sans);
+  font-size: 10.5px;
+  font-style: italic;
+  letter-spacing: 0.08em;
+  color: rgba(250, 247, 242, 0.96);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+  text-transform: lowercase;
+  opacity: 0;
+  animation: stage-fade 8s linear infinite;
+}
+.upload-scanner-stage--1 { animation-delay: 0s; }
+.upload-scanner-stage--2 { animation-delay: 2s; }
+.upload-scanner-stage--3 { animation-delay: 4s; }
+.upload-scanner-stage--4 { animation-delay: 6s; }
+
+@keyframes stage-fade {
+  0%   { opacity: 0; transform: translateY(3px); }
+  3%   { opacity: 1; transform: translateY(0); }
+  22%  { opacity: 1; transform: translateY(0); }
+  25%  { opacity: 0; transform: translateY(-3px); }
+  100% { opacity: 0; transform: translateY(3px); }
+}
 
 .upload-batch-card--scanning {
   cursor: default;
@@ -317,6 +387,10 @@
 .upload-batch-card--scanning .upload-batch-img {
   position: relative;
   overflow: hidden;
+}
+.upload-batch-card--scanning .upload-batch-img img {
+  filter: brightness(0.72) saturate(0.88) contrast(1.04);
+  transition: filter var(--d-base);
 }
 
 .upload-batch-meta {
