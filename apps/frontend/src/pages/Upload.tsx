@@ -9,7 +9,7 @@ import './Upload.css';
 
 const MAX_BATCH = 5;
 const PENDING_KEY = 'tizora_pending_batch';
-const POLL_MS = 2500;
+const POLL_MS = 1200;
 
 function toReviewItem(item: ScannedItem): ReviewItem {
   return {

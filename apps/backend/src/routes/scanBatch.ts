@@ -1,10 +1,9 @@
 import express, { Request, Response } from 'express';
 import multer from 'multer';
 import { randomUUID } from 'crypto';
+import { sql } from 'kysely';
 import { db } from '../db.js';
-import { ai } from '../lib/scanUtils.js';
-import type { ItemClassification } from '../lib/scanUtils.js';
-import { GEMINI_MODEL, buildBatchPrompt } from '../constants/constants.js';
+import { classifyItem } from '../lib/scanUtils.js';
 
 const router = express.Router();
 const MAX_BATCH = 5;
@@ -16,42 +15,9 @@ const upload = multer({
 
 type ScanFile = { filename: string; mime: string; data: string };
 
-async function classifyBatch(files: ScanFile[]): Promise<(ItemClassification | null)[]> {
-  const n     = files.length;
-  const parts = [
-    ...files.map(f => ({ inlineData: { mimeType: f.mime, data: f.data } })),
-    { text: buildBatchPrompt(n) },
-  ];
-  const response = await ai.models.generateContent({
-    model:    GEMINI_MODEL,
-    contents: [{ role: 'user', parts }],
-  });
-  const raw     = response.text ?? '';
-  const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
-  const start   = cleaned.indexOf('[');
-  const end     = cleaned.lastIndexOf(']');
-  if (start === -1 || end === -1) throw new Error('No JSON array in Gemini response');
-  const arr: (ItemClassification | null)[] = JSON.parse(cleaned.slice(start, end + 1));
-  while (arr.length < n) arr.push(null);
-  return arr.slice(0, n);
-}
-
-async function withRetry<T>(fn: () => Promise<T>, attempts = 4): Promise<T> {
-  for (let i = 0; i < attempts; i++) {
-    try { return await fn(); }
-    catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      const retryable = /503|UNAVAILABLE|high demand|429|RESOURCE_EXHAUSTED/i.test(msg);
-      if (retryable && i < attempts - 1) {
-        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i)));
-        continue;
-      }
-      throw err;
-    }
-  }
-  throw new Error('unreachable');
-}
-
+// ── Process each image individually in parallel.
+//    As each one finishes, append result atomically to scan_jobs.results
+//    so the frontend's polling sees images appear one by one. ─────────────
 async function processJobAsync(jobId: string, files: ScanFile[]) {
   try {
     if (!files.length) {
@@ -59,54 +25,46 @@ async function processJobAsync(jobId: string, files: ScanFile[]) {
       return;
     }
 
-    // Split into batches, run in parallel
-    const BATCH_SIZE = 5;
-    const batches: ScanFile[][] = [];
-    for (let i = 0; i < files.length; i += BATCH_SIZE) batches.push(files.slice(i, i + BATCH_SIZE));
+    await Promise.allSettled(
+      files.map(async (file, idx) => {
+        // Stagger starts by 250ms each — avoids hitting Gemini in lockstep
+        if (idx > 0) await new Promise(r => setTimeout(r, idx * 250));
 
-    const batchResults = await Promise.all(
-      batches.map(async (batch, idx) => {
-        // Stagger starts slightly to avoid hitting Gemini simultaneously
-        if (idx > 0) await new Promise(r => setTimeout(r, idx * 500));
-        let classifications: (ItemClassification | null)[] = new Array(batch.length).fill(null);
         try {
-          classifications = await withRetry(() => classifyBatch(batch));
+          const buffer         = Buffer.from(file.data, 'base64');
+          const classification = await classifyItem(buffer, file.mime);
+
+          if (!classification?.isClothing) throw new Error('Not clothing');
+
+          const scannedItem = {
+            ...classification,
+            image: `data:${file.mime};base64,${file.data}`,
+          };
+
+          // Atomic append using Postgres jsonb concatenation — no race conditions
+          await sql`
+            UPDATE scan_jobs
+            SET results   = (results::jsonb || ${JSON.stringify([scannedItem])}::jsonb)::text,
+                processed = processed + 1
+            WHERE id = ${jobId}
+          `.execute(db);
+
+          console.log(`   ✅ [${file.filename}] ${classification.label}`);
         } catch (err) {
-          console.warn(`Gemini batch ${idx} failed after retries:`, err);
+          await sql`
+            UPDATE scan_jobs
+            SET processed = processed + 1,
+                failed    = failed + 1
+            WHERE id = ${jobId}
+          `.execute(db);
+          const msg = err instanceof Error ? err.message : String(err);
+          console.warn(`   ⚠️  [${file.filename}] skipped — ${msg}`);
         }
-        return { batch, classifications };
       })
     );
 
-    const scannedItems: object[] = [];
-    let processed = 0;
-    let failed    = 0;
-
-    for (const { batch, classifications } of batchResults) {
-      for (let j = 0; j < batch.length; j++) {
-        const file           = batch[j];
-        const classification = classifications[j];
-        if (classification?.isClothing) {
-          scannedItems.push({ ...classification, image: `data:${file.mime};base64,${file.data}` });
-          processed++;
-          console.log(`   ✅ ${classification.label}`);
-        } else {
-          failed++;
-          processed++;
-          console.warn(`   ⚠️  ${file.filename} skipped`);
-        }
-      }
-    }
-
-    // Single write for all results
-    await db.updateTable('scan_jobs').set({
-      results:   JSON.stringify(scannedItems),
-      processed,
-      failed,
-      status:    'complete',
-    }).where('id', '=', jobId).execute();
-
-    console.log(`✅ Job ${jobId}: ${processed} processed, ${failed} failed`);
+    await db.updateTable('scan_jobs').set({ status: 'complete' }).where('id', '=', jobId).execute();
+    console.log(`✅ Job ${jobId} complete`);
   } catch (err) {
     console.error(`❌ Job ${jobId} failed:`, err);
     await db.updateTable('scan_jobs').set({ status: 'failed' }).where('id', '=', jobId).execute();
@@ -122,7 +80,7 @@ router.post('/', upload.array('images', MAX_BATCH), async (req: Request, res: Re
     if (!files?.length)           return res.status(400).json({ error: 'No image files provided' });
     if (files.length > MAX_BATCH) return res.status(400).json({ error: `Max ${MAX_BATCH} photos at a time` });
 
-    const jobId   = randomUUID();
+    const jobId = randomUUID();
     const memFiles: ScanFile[] = files.map(f => ({
       filename: f.originalname,
       mime:     f.mimetype,
@@ -131,7 +89,7 @@ router.post('/', upload.array('images', MAX_BATCH), async (req: Request, res: Re
 
     await db.insertInto('scan_jobs').values({ id: jobId, user_id: userId, total: files.length }).execute();
 
-    // Respond immediately — files stay in memory, no DB round-trip needed
+    // Respond immediately
     res.json({ jobId, total: files.length });
 
     setImmediate(() => processJobAsync(jobId, memFiles).catch(err => console.error('Uncaught processJobAsync:', err)));

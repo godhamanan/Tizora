@@ -289,15 +289,34 @@
 .upload-scanning-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(0,0,0,0.35);
+  background: rgba(0,0,0,0.30);
   display: flex;
   align-items: center;
   justify-content: center;
   backdrop-filter: blur(1px);
+  overflow: hidden;
 }
+/* Moving horizontal scanner line — reuses global @keyframes scan-line */
+.upload-scanning-overlay::before {
+  content: '';
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, var(--accent) 50%, transparent 100%);
+  box-shadow: 0 0 8px 2px var(--accent), 0 0 16px 4px rgba(var(--accent-rgb, 200,100,80), 0.4);
+  animation: scan-line 1.8s ease-in-out infinite;
+  z-index: 1;
+}
+.upload-scanning-overlay > * { position: relative; z-index: 2; }
+
 .upload-batch-card--scanning {
   cursor: default;
   pointer-events: none;
+}
+.upload-batch-card--scanning .upload-batch-img {
+  position: relative;
+  overflow: hidden;
 }
 
 .upload-batch-meta {
