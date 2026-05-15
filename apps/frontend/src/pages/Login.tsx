@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { signIn } from '../lib/authClient';
 import { useAuth } from '../context/AuthContext';
@@ -7,10 +7,31 @@ import './Login.css';
 export default function Login() {
   const { session, isPending } = useAuth();
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState<string | null>(null);
 
   useEffect(() => {
     if (!isPending && session) navigate('/', { replace: true });
   }, [isPending, session, navigate]);
+
+  async function handleGoogle() {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await signIn.social({
+        provider:    'google',
+        callbackURL: `${window.location.origin}/`,
+      });
+      if (result?.error) {
+        setError(result.error.message ?? 'Sign-in failed. Try again.');
+        setLoading(false);
+      }
+      // On success better-auth redirects the page — loading stays true intentionally
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not reach server. Try again.');
+      setLoading(false);
+    }
+  }
 
   if (isPending) {
     return <div className="login-root"><div className="login-spinner" /></div>;
@@ -26,11 +47,17 @@ export default function Login() {
 
         <button
           className="login-google-btn"
-          onClick={() => signIn.social({ provider: 'google', callbackURL: `${window.location.origin}/` })}
+          onClick={handleGoogle}
+          disabled={loading}
         >
-          <GoogleIcon />
-          Continue with Google
+          {loading
+            ? <span className="login-spinner-sm" />
+            : <GoogleIcon />
+          }
+          {loading ? 'Connecting…' : 'Continue with Google'}
         </button>
+
+        {error && <p className="login-error">{error}</p>}
 
         <p className="login-fine-print">By continuing you agree to Tizora's terms of service.</p>
       </div>

@@ -51,9 +51,21 @@
   transition: background 0.15s, border-color 0.15s;
 }
 
-.login-google-btn:hover { background: var(--surface-2); border-color: var(--ink-4); }
+.login-google-btn:hover  { background: var(--bg-deep); border-color: var(--ink-4); }
+.login-google-btn:disabled { opacity: 0.6; cursor: default; }
 
 .login-google-icon { width: 20px; height: 20px; flex-shrink: 0; }
+
+.login-error {
+  font-size: var(--t-meta);
+  color: var(--danger);
+  text-align: center;
+  padding: 10px 14px;
+  background: rgba(168, 106, 92, 0.08);
+  border: 1px solid rgba(168, 106, 92, 0.2);
+  border-radius: 8px;
+  width: 100%;
+}
 
 .login-fine-print { font-size: var(--t-meta); color: var(--ink-4); text-align: center; }
 
@@ -63,4 +75,13 @@
   border-top-color: var(--ink-3);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
+}
+
+.login-spinner-sm {
+  width: 16px; height: 16px;
+  border: 1.5px solid rgba(26,24,21,0.2);
+  border-top-color: var(--ink);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
 }
