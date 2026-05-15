@@ -91,12 +91,15 @@ export async function classifyBatch(
     });
     // Longer timeout for batch — more images = more tokens to generate
     const timeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Gemini timeout')), 90_000)
+      setTimeout(() => reject(new Error('Gemini timeout')), 120_000)
     );
     return Promise.race([call, timeout]);
   });
   const results = parseJSON<ItemClassification[]>(response.text ?? '');
   if (!Array.isArray(results)) throw new Error('Expected JSON array from batch classify');
-  if (results.length !== files.length) throw new Error(`Expected ${files.length} results, got ${results.length}`);
+  if (results.length !== files.length) {
+    console.warn(`Gemini returned ${results.length} results for ${files.length} images — processing what we got`);
+  }
+  // Caller iterates over files.length; undefined entries for missing results are treated as failed
   return results;
 }
