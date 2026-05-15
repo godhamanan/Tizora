@@ -44,33 +44,31 @@ async function processJobAsync(jobId: string, files: ScanFile[]) {
     // Single Gemini call for all images
     const classifications = await classifyBatch(resized);
 
-    // Write each result to DB
+    // Build results array and counts in memory — single DB write at the end
+    const successItems: object[] = [];
+    let failed = 0;
+
     for (let i = 0; i < resized.length; i++) {
       const classification = classifications[i];
-
       if (!classification?.isClothing) {
-        await sql`
-          UPDATE scan_jobs
-          SET processed = processed + 1,
-              failed    = failed + 1
-          WHERE id = ${jobId}
-        `.execute(db);
+        failed++;
         console.warn(`   ⚠️  [${resized[i].filename}] skipped — not clothing`);
         continue;
       }
-
-      const scannedItem = { ...classification, image: `data:image/jpeg;base64,${resized[i].data}` };
-      await sql`
-        UPDATE scan_jobs
-        SET results   = (results::jsonb || ${JSON.stringify([scannedItem])}::jsonb)::text,
-            processed = processed + 1
-        WHERE id = ${jobId}
-      `.execute(db);
+      successItems.push({ ...classification, image: `data:image/jpeg;base64,${resized[i].data}` });
       console.log(`   ✅ [${resized[i].filename}] ${classification.label}`);
     }
 
-    await db.updateTable('scan_jobs').set({ status: 'complete' }).where('id', '=', jobId).execute();
-    console.log(`✅ Job ${jobId} complete`);
+    // 1 write: all results + final counts + status
+    await sql`
+      UPDATE scan_jobs
+      SET results   = ${JSON.stringify(successItems)}::text,
+          processed = ${resized.length},
+          failed    = ${failed},
+          status    = 'complete'
+      WHERE id = ${jobId}
+    `.execute(db);
+    console.log(`✅ Job ${jobId} complete — ${successItems.length} classified, ${failed} skipped`);
   } catch (err) {
     console.error(`❌ Job ${jobId} failed:`, err);
     await db.updateTable('scan_jobs').set({ status: 'failed' }).where('id', '=', jobId).execute();
