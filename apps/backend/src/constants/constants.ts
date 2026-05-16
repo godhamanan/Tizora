@@ -346,13 +346,8 @@ ${p.wardrobeSummary}
 10. If wardrobe genuinely lacks an archetype's required slot, gracefully degrade to a similar archetype — never invent piece IDs.
 ${p.anchorItemId ? `11. MANDATORY: piece ID:${p.anchorItemId} must appear in EVERY outfit's pieceIds.` : ''}
 
-━━━ TIP VOICE (stylist-grade, not robotic) ━━━
-Examples of good tips:
-• "The bomber does the talking — let everything else whisper."
-• "Cuff the sleeves once. Untuck halfway. Don't overthink the rest."
-• "Pair the tonal browns; the cream tee lifts heavy to considered."
-• "Leave the shirt open — it changes everything."
-• "Polish from fabric, not from logos."
+━━━ TIP VOICE ━━━
+Examples: "The bomber does the talking — let everything else whisper." | "Cuff the sleeves once. Untuck halfway." | "Leave the shirt open — it changes everything."
 
 ━━━ OUTPUT JSON (no markdown, no prose) ━━━
 {"outfits":[{
@@ -362,10 +357,7 @@ Examples of good tips:
   "pieceIds":[1,2,3],
   "pieces":["Piece A","Piece B","Piece C"],
   "heroPieceId":1,
-  "layeringOrder":[1,2,3],
   "stylingNotes":[{"pieceId":1,"note":"leave open"}],
-  "textureStory":"matte cotton + crisp denim",
-  "whyItWorks":"One line on why these pieces sing together.",
   "occasion":"${p.theme}",
   "tip":"Stylist-voice one-liner, max 14 words.",
   "mood":"Feeling word",
