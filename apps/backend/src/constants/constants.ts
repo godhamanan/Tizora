@@ -39,10 +39,18 @@ export interface Archetype {
 
 export interface OccasionPrompt {
   goal: string;
+  // 2025-26 aesthetic anchor — gives Gemini a real cultural reference
+  inspirationReference: string;
   styleDirection: string[];
   archetypes: Archetype[];
+  // Concrete outfit examples: 3-5 GOOD and 2-3 BAD per occasion. The bad ones
+  // are stronger teachers than the good ones — they prevent specific failure modes.
+  goodExamples: string[];
+  badExamples: string[];
   rules: string[];
   preferredColors: string[];
+  // Acceptable footwear categories — keeps Gemini from suggesting chelsea boots for vacation
+  footwear: string[];
   avoid?: string[];
   silhouetteGuidance?: string[];
   outfitsShouldFeel: string[];
@@ -54,208 +62,350 @@ export interface OccasionPrompt {
 }
 
 export const OCCASION_PROMPTS: Record<string, OccasionPrompt> = {
+
+  // ─── OFFICE ────────────────────────────────────────────────────────────────
   'Office': {
-    goal: 'Polished, intentional, minimal, clean. Quietly professional.',
-    styleDirection: ['smart-casual', 'business-casual', 'tonal dressing', 'understated confidence', 'fit + fabric over loudness'],
+    goal: 'Quietly professional. Refined and intentional. Polish from fit + fabric, never from color or layering.',
+    inspirationReference: 'Modern startup founder, not corporate lawyer. Quiet luxury — The Row, Sunspel, Cos, Loro Piana. NOT 2018 corporate or Wall Street.',
+    styleDirection: ['tonal dressing', 'soft tailoring', 'understated confidence', 'fit + fabric over loudness', 'modern smart-casual'],
     archetypes: [
-      { name: 'Classic Shirt',       composition: ['button-down or oxford shirt', 'chinos or tailored trousers', 'loafers / leather sneakers'] },
-      { name: 'Smart Casual Knit',   composition: ['polo / fine knit', 'chinos / structured trousers', 'loafers / minimal sneakers'] },
-      { name: 'Relaxed Professional',composition: ['lightweight blazer or overshirt', 'clean tee or shirt', 'structured trousers'] },
+      { name: 'Classic Shirt',        composition: ['button-down OR oxford shirt (formality smart-casual / business-casual)', 'chinos OR tailored trousers', 'leather loafers OR clean white leather sneakers'] },
+      { name: 'Smart Casual Knit',    composition: ['fine knit polo OR merino crewneck (NOT chunky)', 'tailored trousers OR dark chinos', 'leather loafers'] },
+      { name: 'Soft Tailoring',       composition: ['unstructured blazer', 'clean tee OR fine button-down', 'tailored trousers'] },
+      { name: 'Elevated Knit Layer',  composition: ['fine cardigan OR overshirt', 'button-down inside', 'chinos OR tailored trousers'] },
+    ],
+    goodExamples: [
+      'Cream merino crewneck + navy chinos + brown leather loafers',
+      'Light blue oxford + olive chinos + white leather sneakers',
+      'Charcoal cashmere knit + black tailored trousers + black chelsea boots',
+      'Unstructured navy blazer + white tee + cream chinos + tan loafers',
+    ],
+    badExamples: [
+      'Hot pink shirt + black jeans — saturation too loud for office',
+      'Graphic tee + cargos — no business signal, reads as weekend',
+      'Suit jacket + tee + ripped jeans — formality clash',
+      'Hoodie + chinos — sportswear breaks the polish',
     ],
     rules: [
-      '2–3 pieces maximum (excluding footwear)',
-      'avoid loud contrast — tonal palettes only',
-      'avoid bold-saturation pieces (no electric, hot, vivid colors)',
-      'avoid sportswear, graphic-heavy items, hoodies',
-      'NO pieces with pieceRole:"hero" unless they are tonal (e.g. a navy blazer is fine, a hot pink shirt is not)',
+      '2–3 pieces MAX (excluding footwear). Office wins through restraint.',
+      'ZERO bold-saturation pieces. No electric, hot, vivid colors of any kind.',
+      'NEVER: hoodies, sweatshirts, graphic tees, cargos, ripped denim, athletic wear, logo sneakers',
+      'If wardrobe has a button-down with business-casual or formal formality, USE IT as the anchor — do not default to a tee',
+      'Maximum 1 outer layer (blazer OR cardigan, never both)',
+      'Maximum 1 pattern across the whole outfit',
     ],
-    preferredColors: ['navy', 'charcoal', 'white', 'cream', 'olive', 'soft blue', 'beige', 'gray', 'black'],
-    avoid: ['athletic wear', 'graphic tees', 'cargo pants', 'ripped denim', 'sneakers with logos'],
+    preferredColors: ['navy', 'charcoal', 'white', 'cream', 'light blue', 'olive', 'beige', 'gray', 'black', 'taupe', 'soft brown'],
+    footwear: ['leather loafers', 'derbies', 'chelsea boots', 'clean white leather sneakers'],
+    avoid: ['athletic wear', 'graphic tees', 'cargo pants', 'ripped denim', 'logo sneakers', 'chunky soled sneakers'],
     silhouetteGuidance: ['structured top + clean lower half', 'avoid oversized-on-oversized'],
-    outfitsShouldFeel: ['refined', 'modern', 'quietly stylish', 'effortless professional'],
+    outfitsShouldFeel: ['refined', 'quietly stylish', 'effortless professional', 'composed', 'confident without trying'],
     layerCount: { min: 2, max: 3 },
-    templates: ['Classic Shirt', 'Smart Casual Knit', 'Relaxed Professional'],
+    templates: ['Classic Shirt', 'Smart Casual Knit', 'Soft Tailoring', 'Elevated Knit Layer'],
     female: {
+      inspirationReference: 'Modern creative director — Phoebe Philo, Khaite, Toteme. Tailored but soft. Never costumey-corporate.',
       archetypes: [
-        { name: 'Tailored Shirt', composition: ['silk blouse or fine shirt', 'tailored trousers or pencil skirt', 'loafers or block heels'] },
-        { name: 'Soft Tailoring', composition: ['blazer', 'clean tee or blouse', 'tailored trousers'] },
-        { name: 'Polished Knit',  composition: ['fine knit top', 'midi skirt or trousers', 'loafers or boots'] },
+        { name: 'Tailored Shirt', composition: ['silk blouse OR fine shirt', 'tailored trousers OR pencil skirt', 'leather loafers OR block heels'] },
+        { name: 'Soft Tailoring', composition: ['unstructured blazer', 'clean tee OR blouse', 'tailored trousers'] },
+        { name: 'Polished Knit',  composition: ['fine knit top', 'midi skirt OR tailored trousers', 'loafers OR ankle boots'] },
+        { name: 'Sheath Dress',   composition: ['knee-length sheath OR midi dress', 'low pumps OR loafers'] },
       ],
-      templates: ['Tailored Shirt', 'Soft Tailoring', 'Polished Knit'],
+      goodExamples: [
+        'Cream silk blouse + tailored navy trousers + black loafers',
+        'Black fine merino + camel midi skirt + ankle boots',
+      ],
+      templates: ['Tailored Shirt', 'Soft Tailoring', 'Polished Knit', 'Sheath Dress'],
     },
   },
 
+  // ─── DATE NIGHT ────────────────────────────────────────────────────────────
   'Date Night': {
-    goal: 'Intentional, attractive, layered, confident.',
-    styleDirection: ['elevated casual', 'layered styling', 'clean dark palettes', 'subtle statement energy'],
+    goal: 'Intentional, attractive, layered, confident. Considered but never trying too hard.',
+    inspirationReference: 'A24 protagonist on a Friday night. Pattinson on a coffee run before a wine bar. Tonal, slightly textured, slightly cinematic. NOT corporate, NOT loud-streetwear.',
+    styleDirection: ['elevated casual', 'intentional layering', 'dark palettes', 'one focal piece', 'subtle statement energy'],
     archetypes: [
-      { name: 'Open Shirt Layer', composition: ['open button-down shirt (worn unbuttoned)', 'fitted tee or tank inside', 'dark jeans or trousers', 'clean sneakers or boots'] },
-      { name: 'Bomber & Tee',     composition: ['bomber / suede / leather jacket', 'fitted clean tee', 'dark bottoms', 'sneakers or boots'] },
-      { name: 'Elevated Knit',    composition: ['textured knit or fine sweater', 'dark trousers or chinos', 'sleek footwear'] },
-      { name: 'Monochrome Minimal',composition: ['tonal top layer', 'dark slim or relaxed trousers', 'sleek footwear'] },
+      { name: 'Open Shirt Layer', composition: ['button-down shirt worn UNBUTTONED OPEN (formality casual / smart-casual)', 'fitted clean tee inside', 'dark jeans OR dark trousers', 'clean white sneakers OR chelsea boots'] },
+      { name: 'Bomber & Tee',     composition: ['bomber OR suede / leather jacket', 'fitted clean tee', 'dark jeans OR dark trousers', 'chelsea boots OR clean sneakers'] },
+      { name: 'Elevated Knit',    composition: ['fine knit crewneck OR henley OR cashmere sweater', 'dark trousers OR dark jeans', 'chelsea boots OR loafers'] },
+      { name: 'Monochrome Minimal',composition: ['tonal dark top (no logos, no graphics)', 'dark slim OR relaxed trousers', 'sleek footwear'] },
+    ],
+    goodExamples: [
+      'Cream button-down (worn open) + black fitted tee + dark navy jeans + clean white sneakers',
+      'Black bomber + white tee + black slim jeans + black chelsea boots',
+      'Charcoal cashmere crewneck + black tailored trousers + brown chelsea boots',
+      'Black henley + dark indigo jeans + black boots',
+    ],
+    badExamples: [
+      'Button-down + chinos + loafers — reads as office, not date',
+      'Hoodie + shorts — no intention, no effort',
+      'Graphic tee + cargos — wrong tone, too casual-streetwear',
+      'Polo + dad jeans — corporate-weekend energy, not romantic',
+      'TWO layers as statement (e.g. open shirt + bomber over it) — kills cohesion, pick ONE focal piece',
     ],
     rules: [
-      '2–4 pieces — intentional layering encouraged',
-      'ONE focal point only: the jacket OR the shirt OR the knit. Never two statement pieces.',
-      'darker bottoms strongly preferred',
-      'balance structured + relaxed pieces',
+      '2–3 pieces (don\'t over-layer)',
+      'ONE focal point ONLY: the open shirt OR the bomber OR the knit. NEVER stack two statement pieces.',
+      'Dark bottoms STRONGLY preferred (black, navy, charcoal jeans or trousers)',
+      'AVOID corporate energy — no chinos paired with button-down + loafers',
+      'AVOID hoodies and graphic tees as the outer/visible layer',
     ],
-    preferredColors: ['black', 'charcoal', 'olive', 'deep brown', 'navy', 'cream', 'dusty rose'],
-    avoid: ['bright loud colors as background pieces', 'sportswear', 'hoodies as outer layer'],
-    silhouetteGuidance: ['balance structured + relaxed pieces', 'avoid bulky layering'],
-    outfitsShouldFeel: ['confident', 'attractive', 'modern', 'cinematic', 'effortless'],
-    layerCount: { min: 2, max: 4 },
+    preferredColors: ['black', 'charcoal', 'navy', 'deep brown', 'olive', 'cream as accent', 'dusty earth tones'],
+    footwear: ['clean white leather sneakers', 'chelsea boots', 'loafers', 'minimal black boots'],
+    avoid: ['bright loud colors as background', 'sportswear', 'hoodies as outer layer', 'cargo bottoms', 'pastel button-downs'],
+    silhouetteGuidance: ['balance structured (jacket, shirt) + relaxed (tee, fitted jeans)', 'never bulky', 'never sloppy'],
+    outfitsShouldFeel: ['confident', 'attractive', 'cinematic', 'considered', 'effortless'],
+    layerCount: { min: 2, max: 3 },
     templates: ['Open Shirt Layer', 'Bomber & Tee', 'Elevated Knit', 'Monochrome Minimal'],
     female: {
+      inspirationReference: 'Hailey Bieber off-duty dinner. Mary-Kate Olsen at a wine bar. Tonal, textured, one elevated piece.',
       archetypes: [
-        { name: 'Slip & Layer',     composition: ['silk slip top or camisole', 'tailored trousers or midi skirt', 'heels or ankle boots'] },
-        { name: 'Knit & Skirt',     composition: ['fitted knit', 'leather or midi skirt', 'boots or heels'] },
-        { name: 'Midi Dress',       composition: ['fitted midi dress', 'heels or ankle boots'] },
-        { name: 'Elevated Casual',  composition: ['fitted top', 'tailored trousers or dark jeans', 'sleek footwear'] },
+        { name: 'Slip & Layer',     composition: ['silk slip top OR camisole', 'tailored trousers OR midi skirt', 'heels OR ankle boots'] },
+        { name: 'Knit & Skirt',     composition: ['fitted fine knit', 'leather OR midi skirt', 'boots OR heels'] },
+        { name: 'Midi Dress',       composition: ['fitted midi dress (dark or neutral)', 'heels OR ankle boots'] },
+        { name: 'Elevated Casual',  composition: ['fitted top OR fine knit', 'tailored trousers OR dark jeans', 'sleek footwear'] },
+      ],
+      goodExamples: [
+        'Black silk slip + tailored cream trousers + black mules',
+        'Cream knit + leather midi skirt + ankle boots',
       ],
       templates: ['Slip & Layer', 'Knit & Skirt', 'Midi Dress', 'Elevated Casual'],
     },
   },
 
+  // ─── NIGHT OUT ─────────────────────────────────────────────────────────────
   'Night Out': {
-    goal: 'Bold, stylish, energetic, nightlife-ready.',
-    styleDirection: ['elevated streetwear', 'dark palettes', 'sharper contrasts', 'fashion-forward layering'],
+    goal: 'Bold, energetic, fashion-forward. Late dinner into a low-lit bar.',
+    inspirationReference: 'Friday late dinner into a club afterparty. The Weeknd at a private studio. Tarantino late-90s LA. Dark, textured, statement.',
+    styleDirection: ['elevated streetwear', 'dark palettes', 'sharper contrasts', 'fashion-forward layering', 'statement energy'],
     archetypes: [
-      { name: 'Statement Outerwear', composition: ['bold jacket or bomber', 'clean inner layer (tee/fitted top)', 'dark jeans or trousers', 'statement footwear'] },
-      { name: 'Layered Streetwear',  composition: ['open overshirt or flannel', 'inner tee', 'cargos or dark denim', 'sneakers or boots'] },
-      { name: 'Monochrome Dark',     composition: ['black-on-black layered top', 'dark slim trousers', 'statement footwear'] },
+      { name: 'Statement Outerwear', composition: ['bold jacket / bomber / leather (the focal point)', 'clean inner tee OR fitted top', 'dark jeans OR slim trousers', 'statement footwear'] },
+      { name: 'Layered Streetwear',  composition: ['open overshirt OR flannel (statement)', 'inner clean tee', 'cargos OR dark denim', 'sneakers OR boots'] },
+      { name: 'Monochrome Dark',     composition: ['dark-on-dark layered top', 'dark slim trousers', 'statement footwear'] },
+    ],
+    goodExamples: [
+      'Dark green corduroy jacket + black tee + black slim jeans + black boots',
+      'Black leather jacket + white tee + black denim + chunky-sole boots',
+      'Open dark flannel + black tee + black cargos + black sneakers',
+    ],
+    badExamples: [
+      'Office shirt + chinos + loafers — too tame, no energy',
+      'Pastel button-down + light jeans — too soft, reads brunch not bar',
+      'Sandals or beach footwear — wrong context',
+      'Khakis + polo — golf club energy',
     ],
     rules: [
-      'layering preferred — 3+ pieces ideal',
-      'stronger contrast allowed (one bold piece + dark base)',
-      'darker bottoms strongly preferred',
-      'avoid officewear energy and pastel-only palettes',
+      '2–3 non-footwear pieces',
+      'ONE statement piece — usually outerwear or footwear. Never both.',
+      'Dark bottoms strongly preferred',
+      'AVOID office energy (chinos + button-down + loafers is forbidden)',
+      'AVOID pastel-only palettes',
     ],
-    preferredColors: ['black', 'charcoal', 'deep burgundy', 'olive', 'rust', 'cream as accent'],
+    preferredColors: ['black', 'charcoal', 'deep burgundy', 'olive', 'rust', 'cream as accent only'],
+    footwear: ['black chelsea boots', 'chunky-sole boots', 'leather sneakers', 'minimal black sneakers'],
+    avoid: ['sandals', 'office loafers as the only footwear', 'pastel palettes', 'beachwear'],
     silhouetteGuidance: ['layered but not bulky', 'one structured + one relaxed piece'],
     outfitsShouldFeel: ['edgy', 'confident', 'nightlife-ready', 'stylish without trying too hard'],
-    layerCount: { min: 2, max: 4 },
+    layerCount: { min: 2, max: 3 },
     templates: ['Statement Outerwear', 'Layered Streetwear', 'Monochrome Dark'],
     female: {
+      inspirationReference: 'Bella Hadid post-dinner. Off-duty Kardashian. Slim, dark, statement footwear or bag.',
       archetypes: [
-        { name: 'Mini & Boots',      composition: ['mini dress or skirt + fitted top', 'knee-high or ankle boots'] },
-        { name: 'Statement Top',     composition: ['satin or sequin top', 'dark trousers or skirt', 'heels'] },
-        { name: 'Leather & Slim',    composition: ['leather jacket', 'fitted top', 'slim trousers or skirt', 'boots or heels'] },
+        { name: 'Mini & Boots',      composition: ['mini dress OR fitted top + skirt', 'knee-high OR ankle boots'] },
+        { name: 'Statement Top',     composition: ['satin OR sequin top', 'dark trousers OR slim skirt', 'heels'] },
+        { name: 'Leather & Slim',    composition: ['leather jacket', 'fitted dark top', 'slim trousers OR skirt', 'boots OR heels'] },
       ],
       templates: ['Mini & Boots', 'Statement Top', 'Leather & Slim'],
     },
   },
 
+  // ─── WEEKEND ───────────────────────────────────────────────────────────────
   'Weekend': {
-    goal: 'Relaxed, effortless, wearable.',
-    styleDirection: ['clean casual', 'comfortable', 'modern basics', 'easy layering'],
+    goal: 'Relaxed, effortless, naturally stylish. Comfortable without trying.',
+    inspirationReference: 'Sunday brunch followed by a flea market. Aimé Leon Dore. Sunday Best. Casual but quietly considered — never sloppy, never office.',
+    styleDirection: ['clean casual', 'modern basics', 'easy layering', 'low effort, high taste'],
     archetypes: [
-      { name: 'Easy Casual',     composition: ['tee', 'jeans or chinos', 'sneakers'] },
-      { name: 'Relaxed Layered', composition: ['hoodie or sweatshirt', 'relaxed pants or jeans', 'casual sneakers'] },
-      { name: 'Elevated Casual', composition: ['knit or casual shirt', 'chinos or dark jeans', 'clean sneakers or boots'] },
+      { name: 'Easy Casual',     composition: ['tee OR fine knit', 'jeans OR chinos', 'clean sneakers'] },
+      { name: 'Hoodie & Pants',  composition: ['hoodie OR sweatshirt', 'relaxed jeans OR joggers', 'sneakers'] },
+      { name: 'Elevated Easy',   composition: ['fine knit OR casual shirt', 'chinos OR dark jeans', 'clean sneakers OR boots'] },
+    ],
+    goodExamples: [
+      'Cream fitted tee + dark indigo jeans + white sneakers',
+      'Olive hoodie + black sweatpants + white sneakers',
+      'Light knit polo + cream chinos + brown loafers',
+      'Black tee + olive chinos + canvas sneakers',
+    ],
+    badExamples: [
+      'Button-down + tailored trousers + leather loafers — too office for Sunday',
+      'Suit jacket + jeans — formality clash, reads costume',
+      'Festive ethnic kurta + sneakers — wrong context',
     ],
     rules: [
-      'comfort prioritized — fits should be relaxed not skin-tight',
-      'layering optional (2–3 pieces)',
-      'muted and earthy tones encouraged',
+      '2–3 pieces',
+      'Comfort prioritized — relaxed fits, never skin-tight',
+      'NO business-casual / formal pieces. NO ties, dress shirts, blazers (unless casual-styled)',
+      'Maximum 1 pattern',
     ],
-    preferredColors: ['cream', 'olive', 'navy', 'gray', 'white', 'tan', 'rust', 'denim-blue'],
+    preferredColors: ['cream', 'olive', 'navy', 'gray', 'white', 'tan', 'rust', 'denim-blue', 'soft brown'],
+    footwear: ['clean white sneakers', 'canvas sneakers', 'casual loafers', 'low-top boots'],
+    avoid: ['dress shirts (unless very casual)', 'ties', 'formal pieces', 'heels'],
     outfitsShouldFeel: ['approachable', 'relaxed', 'stylish naturally', 'low-effort high-taste'],
     layerCount: { min: 2, max: 3 },
-    templates: ['Easy Casual', 'Relaxed Layered', 'Elevated Casual'],
+    templates: ['Easy Casual', 'Hoodie & Pants', 'Elevated Easy'],
   },
 
+  // ─── TRAVEL ────────────────────────────────────────────────────────────────
   'Travel': {
-    goal: 'Comfortable, wrinkle-resistant, airport-aesthetic. Put together without trying.',
-    styleDirection: ['comfort first', 'layering practicality', 'soft tailoring'],
+    goal: 'Comfortable, wrinkle-resistant, airport-aesthetic. Put together with zero effort.',
+    inspirationReference: 'JFK at 6am. Hailey Bieber airport pulls. Comfortable but considered — looks like you barely tried but did.',
+    styleDirection: ['comfort first', 'soft fabrics', 'easy layering', 'airport-aesthetic'],
     archetypes: [
-      { name: 'Hoodie & Pants',   composition: ['hoodie or zip-up', 'joggers or relaxed pants', 'sneakers'] },
-      { name: 'Tee & Pants',      composition: ['plain tee', 'cargo pants or relaxed chinos', 'sneakers'] },
-      { name: 'Soft Layered',     composition: ['lightweight outerwear', 'tee or fine knit', 'relaxed pants', 'sneakers'] },
+      { name: 'Hoodie & Sweats',   composition: ['hoodie OR zip-up', 'joggers OR sweatpants', 'clean sneakers'] },
+      { name: 'Tee & Relaxed',     composition: ['plain tee OR fine knit', 'relaxed chinos OR cargos', 'clean sneakers'] },
+      { name: 'Soft Layered',      composition: ['lightweight zip-up OR cardigan', 'tee OR fine knit', 'sweatpants OR relaxed pants', 'clean sneakers'] },
+    ],
+    goodExamples: [
+      'Gray hoodie + black joggers + white sneakers',
+      'Cream tee + olive cargos + white sneakers',
+      'Black fine knit + gray sweatpants + slip-on sneakers',
+    ],
+    badExamples: [
+      'Button-down + tailored trousers + dress shoes — too restrictive for 4-hour seated travel',
+      'Leather bomber + turtleneck + cargos — wrong climate (assume mild), too heavy',
+      'Tank top + shorts — looks underdressed in airport',
+      'Suit jacket + tee + jeans — formality clash',
     ],
     rules: [
-      '2–3 pieces, max one outer layer',
-      'avoid restrictive fits, hard structure, uncomfortable footwear',
-      'sportswear ACCEPTABLE here (joggers, hoodies, sweats)',
+      '2–3 pieces. Maximum 1 outer layer (light cardigan / zip-up only — NEVER heavy bomber or leather)',
+      'NEVER: leather jackets, heavy bombers, turtlenecks paired with other tops, suit jackets, dress shoes',
+      'Athleisure ENCOURAGED (joggers, hoodies, sweats)',
+      'Footwear must be slip-on-friendly (security checkpoint test)',
     ],
-    preferredColors: ['gray', 'black', 'navy', 'olive', 'cream', 'tan'],
-    outfitsShouldFeel: ['comfortable', 'put together', 'effortless'],
+    preferredColors: ['gray', 'black', 'navy', 'olive', 'cream', 'tan', 'charcoal'],
+    footwear: ['clean white sneakers', 'slip-on sneakers', 'casual sneakers'],
+    avoid: ['leather jackets', 'heavy bombers', 'dress shoes', 'restrictive trousers', 'turtlenecks (in temperate travel)'],
+    outfitsShouldFeel: ['comfortable', 'put together', 'effortless', 'travel-ready'],
     layerCount: { min: 2, max: 3 },
-    templates: ['Hoodie & Pants', 'Tee & Pants', 'Soft Layered'],
+    templates: ['Hoodie & Sweats', 'Tee & Relaxed', 'Soft Layered'],
   },
 
+  // ─── VACATION ──────────────────────────────────────────────────────────────
   'Vacation': {
-    goal: 'Resort-energy, breathable, lighter palettes.',
-    styleDirection: ['breathable fabrics', 'relaxed silhouettes', 'resort styling'],
+    goal: 'Resort energy. Breathable, light, sun-ready. Effortless but never sloppy.',
+    inspirationReference: 'Mallorca rooftop. Loewe Paula\'s Ibiza. Loro Piana Capri. Resort styling — NEVER winter NYC, NEVER office.',
+    styleDirection: ['breathable fabrics (linen, cotton, terry)', 'relaxed silhouettes', 'resort styling', 'light palettes'],
     archetypes: [
-      { name: 'Linen Resort',     composition: ['linen shirt (open or buttoned)', 'shorts or relaxed trousers', 'sandals'] },
-      { name: 'Print & Pants',    composition: ['printed resort shirt or tee', 'linen trousers or shorts', 'sandals or sneakers'] },
-      { name: 'Soft Cotton',      composition: ['soft cotton tee', 'shorts', 'sandals'] },
+      { name: 'Linen Resort',     composition: ['linen shirt (worn open OR buttoned)', 'linen shorts OR linen trousers', 'leather sandals'] },
+      { name: 'Print & Pants',    composition: ['printed resort shirt OR soft tee', 'light linen trousers OR shorts', 'sandals OR canvas slip-on'] },
+      { name: 'Soft Cotton',      composition: ['soft cotton tee', 'shorts OR light pants', 'sandals'] },
+    ],
+    goodExamples: [
+      'Cream open linen shirt + white tank inside + sky-blue linen shorts + tan leather sandals',
+      'Sage soft tee + cream linen trousers + canvas slip-on',
+      'Light pink printed shirt + white shorts + leather sandals',
+    ],
+    badExamples: [
+      'Leather bomber + turtleneck + cargo pants — wrong everything (this is winter NYC, NOT vacation)',
+      'Suit jacket + dress shirt — way too formal',
+      'Hoodie + sweatpants — travel mode, not vacation mode',
+      'Heavy wool sweater of any kind — wrong climate',
+      'Cargo pants — too tactical / military for resort',
     ],
     rules: [
-      '2–3 pieces, light fabrics only',
-      'avoid heavy fabrics, dark heavy outerwear, formal pieces',
+      '2–3 pieces. LIGHT fabrics only — linen, light cotton, terry, knit-cotton',
+      'NEVER: leather, suede, heavy wool, turtlenecks, bombers, suit jackets, dress shirts, cargo pants',
+      'Sandals or canvas sneakers preferred — NEVER chelsea boots or dress shoes',
+      'If wardrobe lacks proper vacation pieces, return MINIMAL 2-piece outfits (tee + shorts, or shirt + pants) with matchQuality:"closest" — DO NOT pad with heavy outerwear',
     ],
-    preferredColors: ['cream', 'sand', 'white', 'sky-blue', 'sage', 'soft pink', 'pale yellow'],
+    preferredColors: ['cream', 'sand', 'white', 'sky-blue', 'sage', 'soft pink', 'pale yellow', 'light olive', 'terracotta'],
+    footwear: ['leather sandals', 'canvas slip-on', 'espadrilles', 'clean white sneakers'],
+    avoid: ['leather jackets', 'wool', 'turtlenecks', 'cargos', 'dress shoes', 'boots of any kind'],
     outfitsShouldFeel: ['effortless', 'resort', 'breezy', 'sun-ready'],
     layerCount: { min: 2, max: 3 },
     templates: ['Linen Resort', 'Print & Pants', 'Soft Cotton'],
   },
 
+  // ─── FESTIVAL ──────────────────────────────────────────────────────────────
   'Festival': {
-    goal: 'Celebratory and expressive. Match the user style if Ethnic exists; else go Western festival-energy.',
-    styleDirection: ['celebratory', 'expressive', 'rich textures'],
+    goal: 'Celebratory and expressive. Cultural reference if wardrobe is Ethnic-leaning; else Western festival energy.',
+    inspirationReference: 'Diwali rooftop / Holi morning if Ethnic. Coachella afternoon / music festival if Western. Always expressive, never plain office.',
+    styleDirection: ['celebratory', 'expressive', 'rich textures', 'culturally grounded'],
     archetypes: [
-      // Ethnic path (preferred if user has Ethnic pieces)
-      { name: 'Kurta & Bottom',   composition: ['kurta', 'churidar / pants / jeans', 'mojris or sneakers'] },
-      { name: 'Fusion Layered',   composition: ['fusion overshirt or short kurta', 'tee inside', 'jeans or trousers'] },
-      // Western fallback (no ethnic in wardrobe)
-      { name: 'Statement Western',composition: ['statement printed/embroidered shirt', 'dark trousers or jeans', 'clean footwear'] },
-      { name: 'Elevated Casual',  composition: ['rich-tone knit or shirt', 'dark trousers', 'boots or loafers'] },
+      { name: 'Kurta & Bottom',   composition: ['kurta (preferably embroidered or rich-tone)', 'churidar OR pants OR dark jeans', 'mojris OR clean sneakers'] },
+      { name: 'Fusion Layered',   composition: ['fusion overshirt OR short kurta', 'tee inside', 'jeans OR trousers', 'sneakers OR mojris'] },
+      { name: 'Statement Western',composition: ['statement printed OR embroidered shirt', 'dark trousers OR dark jeans', 'clean footwear'] },
+      { name: 'Elevated Casual',  composition: ['rich-tone knit OR linen shirt', 'dark trousers', 'boots OR loafers'] },
+    ],
+    goodExamples: [
+      'Cream embroidered kurta + dark jeans + tan mojris',
+      'Black short kurta over tee + dark trousers + white sneakers',
+      'Rust printed shirt + black trousers + brown chelsea boots',
+    ],
+    badExamples: [
+      'Plain office button-down + chinos — no festival energy',
+      'Hoodie + sweatpants — far too casual',
+      'Suit + tie — too formal-corporate',
     ],
     rules: [
       '2–4 pieces',
-      'prefer Ethnic archetypes if the user has Ethnic pieces in wardrobe',
-      'avoid plain western office shirts, sportswear, loungewear',
+      'STRONGLY prefer Ethnic archetypes if wardrobe has Ethnic pieces',
+      'AVOID plain western office shirts, sportswear, loungewear',
+      'Rich tones + textures encouraged',
     ],
-    preferredColors: ['cream', 'maroon', 'gold-accent', 'navy', 'olive', 'rust', 'deep green'],
+    preferredColors: ['cream', 'maroon', 'gold-accent', 'navy', 'olive', 'rust', 'deep green', 'mustard'],
+    footwear: ['mojris', 'clean leather loafers', 'chelsea boots', 'clean white sneakers'],
     outfitsShouldFeel: ['celebratory', 'expressive', 'culturally grounded'],
     layerCount: { min: 2, max: 4 },
     templates: ['Kurta & Bottom', 'Fusion Layered', 'Statement Western', 'Elevated Casual'],
     female: {
+      inspirationReference: 'Sangeet rooftop, Holi morning, Diwali night. Embellished but never costumey.',
       archetypes: [
-        { name: 'Lehenga / Saree', composition: ['lehenga or saree', 'optional dupatta', 'jhumkas / heels or mojris'] },
-        { name: 'Anarkali / Suit', composition: ['anarkali or salwar-suit', 'dupatta', 'mojris or heels'] },
-        { name: 'Fusion Set',      composition: ['kurta or fusion top', 'palazzo or jeans', 'sandals or mojris'] },
+        { name: 'Lehenga / Saree', composition: ['lehenga OR saree', 'optional dupatta', 'jhumkas + heels OR mojris'] },
+        { name: 'Anarkali / Suit', composition: ['anarkali OR salwar-suit', 'dupatta', 'mojris OR heels'] },
+        { name: 'Fusion Set',      composition: ['kurta OR fusion top', 'palazzo OR jeans', 'sandals OR mojris'] },
       ],
       templates: ['Lehenga / Saree', 'Anarkali / Suit', 'Fusion Set'],
     },
   },
 
+  // ─── WEDDING ───────────────────────────────────────────────────────────────
   'Wedding': {
-    goal: 'Elevated formal presence. Match the user style (Ethnic for Indian weddings, formal Western otherwise).',
-    styleDirection: ['elevated formal', 'luxury textures', 'culturally aware'],
+    goal: 'Elevated formal presence. Camera-ready. Cultural reference dictates form.',
+    inspirationReference: 'Sabyasachi groom\'s lehenga ceremony if Ethnic. Tom Ford black-tie if Western. Always formal-luxury textures.',
+    styleDirection: ['elevated formal', 'luxury textures', 'culturally aware', 'camera-ready'],
     archetypes: [
-      { name: 'Sherwani / Bandhgala', composition: ['sherwani or bandhgala', 'churidar or formal trousers', 'mojris or formal shoes'] },
-      { name: 'Formal Kurta Layered', composition: ['heavy kurta', 'churidar or pants', 'optional waistcoat', 'mojris'] },
-      { name: 'Western Suit',         composition: ['suit jacket + matching trousers', 'dress shirt', 'tie or pocket square', 'leather shoes'] },
-      { name: 'Indo-Western',         composition: ['fusion jacket or bandhgala', 'tailored trousers', 'leather shoes or mojris'] },
+      { name: 'Sherwani / Bandhgala', composition: ['sherwani OR bandhgala', 'churidar OR formal trousers', 'mojris OR formal leather shoes'] },
+      { name: 'Formal Kurta Layered', composition: ['heavy embellished kurta', 'churidar OR formal pants', 'optional waistcoat / Nehru jacket', 'mojris'] },
+      { name: 'Western Suit',         composition: ['suit jacket + matching trousers', 'dress shirt', 'optional tie / pocket square', 'leather oxford OR derby shoes'] },
+      { name: 'Indo-Western',         composition: ['fusion jacket OR bandhgala', 'tailored trousers', 'leather shoes OR mojris'] },
+    ],
+    goodExamples: [
+      'Cream sherwani + matching churidar + tan mojris',
+      'Black suit jacket + matching trousers + white dress shirt + black tie + black oxfords',
+      'Maroon bandhgala + black tailored trousers + black mojris',
+    ],
+    badExamples: [
+      'Hoodie + jeans — completely inappropriate',
+      'Casual tee + chinos — too informal for wedding camera moments',
+      'Sportswear of any kind',
     ],
     rules: [
-      '3–4 pieces — formal layering expected',
-      'prefer Ethnic if user has Ethnic pieces',
-      'NEVER: hoodies, sportswear, casual basics, denim',
+      '3–4 pieces — formal layering EXPECTED',
+      'STRONGLY prefer Ethnic archetypes if wardrobe has Ethnic pieces',
+      'NEVER: hoodies, sportswear, casual basics, denim, sneakers',
+      'Camera test: would this look elevated in family photos?',
     ],
     preferredColors: ['cream', 'maroon', 'gold', 'navy', 'champagne', 'deep green', 'black', 'charcoal'],
-    outfitsShouldFeel: ['elevated', 'formal', 'present'],
+    footwear: ['mojris', 'leather oxford / derby shoes', 'formal leather loafers'],
+    avoid: ['denim', 'sneakers', 'casual tees', 'hoodies'],
+    outfitsShouldFeel: ['elevated', 'formal', 'present', 'camera-ready'],
     layerCount: { min: 3, max: 4 },
     templates: ['Sherwani / Bandhgala', 'Formal Kurta Layered', 'Western Suit', 'Indo-Western'],
     female: {
+      inspirationReference: 'Sabyasachi bride or wedding guest. Manish Malhotra. Embellished, never plain.',
       archetypes: [
-        { name: 'Heavy Lehenga',    composition: ['heavily embellished lehenga', 'dupatta', 'jhumkas + heels'] },
-        { name: 'Saree',            composition: ['silk or embellished saree', 'matching blouse', 'heels or mojris'] },
-        { name: 'Anarkali',         composition: ['heavy anarkali', 'dupatta', 'heels or mojris'] },
-        { name: 'Indo-Western Gown',composition: ['fusion gown or floor-length set', 'heels'] },
+        { name: 'Heavy Lehenga',     composition: ['heavily embellished lehenga', 'dupatta', 'jhumkas + heels'] },
+        { name: 'Saree',             composition: ['silk OR embellished saree', 'matching blouse', 'heels OR mojris'] },
+        { name: 'Anarkali',          composition: ['heavy anarkali', 'dupatta', 'heels OR mojris'] },
+        { name: 'Indo-Western Gown', composition: ['fusion gown OR floor-length set', 'heels'] },
       ],
       templates: ['Heavy Lehenga', 'Saree', 'Anarkali', 'Indo-Western Gown'],
     },
@@ -302,29 +452,42 @@ export function buildSuggestPrompt(p: SuggestPromptParams): string {
   const styleDirection  = occ.styleDirection.map(s => `• ${s}`).join('\n');
   const rules           = occ.rules.map(s => `• ${s}`).join('\n');
   const preferredColors = occ.preferredColors.join(', ');
-  const avoidLine       = occ.avoid?.length ? `\nAVOID:\n${occ.avoid.map(s => `• ${s}`).join('\n')}` : '';
-  const silhouette      = occ.silhouetteGuidance?.length ? `\nSilhouette guidance:\n${occ.silhouetteGuidance.map(s => `• ${s}`).join('\n')}` : '';
+  const footwearList    = occ.footwear.join(', ');
+  const avoidLine       = occ.avoid?.length ? `\n\nAVOID:\n${occ.avoid.map(s => `• ${s}`).join('\n')}` : '';
+  const silhouette      = occ.silhouetteGuidance?.length ? `\n\nSilhouette guidance:\n${occ.silhouetteGuidance.map(s => `• ${s}`).join('\n')}` : '';
   const feels           = occ.outfitsShouldFeel.join(', ');
   const templateList    = occ.templates.map(t => `"${t}"`).join(' | ');
+  const goodExamples    = occ.goodExamples.map(s => `  ✓ ${s}`).join('\n');
+  const badExamples     = occ.badExamples.map(s => `  ✗ ${s}`).join('\n');
 
-  return `You are a senior personal stylist with 2025–26 sensibility. You compose intentional outfits — never random piles of clothes. Every outfit has a clear archetype, a focal point, and a coherent palette. You think in silhouettes and layering, not just categories.
+  return `You are a senior personal stylist with 2025–26 sensibility. You think like a human stylist — not a fashion algorithm. You compose INTENTIONAL outfits, never random piles of clothes. Every outfit has a clear archetype, ONE focal point, and a coherent palette. You believe restraint is a stylist's mark: a clean 2-piece outfit always beats a cluttered 4-piece reach.
 
 ━━━ CONTEXT ━━━
 Season: ${p.season} ${p.year} | Occasion: "${p.theme}" | User: ${p.gender} | ${p.weatherContext}
 ${p.anchorBlock}
 ━━━ STYLING SYSTEM — "${p.theme}" ━━━
-Goal: ${occ.goal}
+
+GOAL: ${occ.goal}
+
+REFERENCE: ${occ.inspirationReference}
 
 Style direction:
 ${styleDirection}
 
-Allowed archetypes (pick a DIFFERENT one for each of the 3 outfits):
+Allowed archetypes — pick a DIFFERENT one for each of the 3 outfits:
 
 ${archetypes}
 
+✓ EXAMPLES of OUTFITS THAT WORK for this occasion:
+${goodExamples}
+
+✗ EXAMPLES of OUTFITS THAT FAIL (NEVER produce anything like these):
+${badExamples}
+
 Rules:
 ${rules}
-• Layer count: ${occ.layerCount.min}–${occ.layerCount.max} pieces (excluding footwear)
+• Layer count: ${occ.layerCount.min}–${occ.layerCount.max} pieces (EXCLUDING footwear)
+• Footwear: ${footwearList}
 
 Preferred palette: ${preferredColors}${avoidLine}${silhouette}
 
@@ -333,30 +496,46 @@ Outfits should feel: ${feels}
 ━━━ WARDROBE ━━━
 ${p.wardrobeSummary}
 
-━━━ BUILD 3 OUTFITS — STRICT REQUIREMENTS ━━━
+━━━ HOW TO COMPOSE — think before output ━━━
 
-🚨 HARD CAP — LAYER COUNT IS NON-NEGOTIABLE 🚨
-Each outfit MUST contain ${occ.layerCount.min}–${occ.layerCount.max} non-footwear pieces. NEVER exceed ${occ.layerCount.max}.
-Footwear is separate (one shoe slot, doesn't count toward the cap).
-If wardrobe lacks ideal pieces for this occasion: lean toward the MINIMUM (${occ.layerCount.min} pieces). Restraint is a stylist's mark — do NOT add a third or fourth top "to compensate". A clean 2-piece "closest match" beats a cluttered 4-piece reach.
+For EACH outfit, internally answer in order:
+  1. WHAT'S THE HERO? Pick ONE focal piece first — either a [HERO]-tagged piece, an outerwear with character, or the most thematically-strong item in the wardrobe.
+  2. WHAT BUILDS AROUND IT? Add ONLY pieces that support the hero — neutrals, complementary colors, balancing silhouettes.
+  3. CAN I REMOVE A PIECE? If yes, remove it. Stop at ${occ.layerCount.min}–${occ.layerCount.max} pieces.
+  4. WOULD A STYLIST PHOTOGRAPH THIS? If the outfit feels random, generic, or like inventory — rebuild.
 
-1. Each outfit MUST use a DIFFERENT archetype from: ${templateList}
-2. The dominant piece in each outfit (the hero piece — the one that defines the outfit's identity) MUST be different across all 3 outfits. Do NOT use the same tee/shirt as the anchor twice.
-3. Avoid simple "jacket-swap" variations — each outfit must have distinct visual energy.
-4. Set "template" to the archetype name you used.
-5. ONLY include piece IDs that exist in the wardrobe above. Never invent IDs.
-6. Formality must be consistent within an outfit. Never mix athletic with business-casual or formal.
-7. Colors must harmonize per the preferred palette above.
-8. ${p.theme === 'Office' ? 'Office HARD RULE: prioritize button-down shirts, polos, blazers, and tailored trousers. If wardrobe has a button-down shirt or blazer with formality:"business-casual" or "formal", USE IT — do not default to a tee or casual shirt. NO pieces with pieceRole:"hero" if colorSaturation is "bold". Tonal/anchor pieces only.' : p.theme === 'Vacation' || p.theme === 'Travel' ? `${p.theme} HARD RULE: NEVER include leather jackets, heavy bombers, turtlenecks, suit jackets, or heavy outerwear. Stay light, simple, comfortable. Max ${occ.layerCount.max} pieces — if you cannot meet the archetype with ${occ.layerCount.max} or fewer pieces from this wardrobe, return a minimal 2-piece outfit with matchQuality:"closest".` : 'If wardrobe has hero pieces, at least 1 outfit SHOULD feature one as the focal point.'}
-9. If wardrobe genuinely lacks an archetype's required slot, gracefully degrade to a similar archetype AND set matchQuality:"closest" — never invent piece IDs and never pad with extras.
+━━━ STRICT REQUIREMENTS ━━━
+
+🚨 LAYER COUNT IS A HARD CAP: ${occ.layerCount.min}–${occ.layerCount.max} non-footwear pieces. NEVER exceed ${occ.layerCount.max}. If wardrobe lacks ideal pieces, return MINIMUM (${occ.layerCount.min}) with matchQuality:"closest" — do NOT pad with extras.
+
+1. Each of the 3 outfits MUST use a DIFFERENT archetype: ${templateList}
+2. The HERO PIECE must be different across all 3 outfits (no reusing the same anchor with swapped layers).
+3. Each outfit must have EXACTLY ONE statement / focal piece — never two competing statements.
+4. EXACTLY 1 bottom per outfit. EXACTLY 1 outer-layer max. Maximum 1 pattern across the outfit.
+5. Formality consistent within an outfit. Never mix athletic with business-casual or formal.
+6. Footwear must match the occasion (see Footwear list above).
+7. ONLY use piece IDs from the wardrobe above. Never invent IDs.
+8. Set "template" to the archetype name you used.
+9. If a needed slot is missing from the wardrobe, gracefully use the closest available piece AND set matchQuality:"closest".
 ${p.anchorItemId ? `10. MANDATORY: piece ID:${p.anchorItemId} must appear in EVERY outfit's pieceIds.` : ''}
 
-━━━ TIP VOICE ━━━
-Examples: "The bomber does the talking — let everything else whisper." | "Cuff the sleeves once. Untuck halfway." | "Leave the shirt open — it changes everything."
+━━━ TIP VOICE — stylist, not Pinterest caption ━━━
+These tips are how a real friend-stylist would speak. Short. Confident. Specific.
+Examples:
+  • "The bomber does the talking — let everything else whisper."
+  • "Cuff the sleeves once. Untuck halfway. That's the whole thing."
+  • "Leave the shirt open. It changes the entire outfit."
+  • "Tonal browns + cream tee — heavy reads considered."
+  • "Polish from fabric, not from color."
+  • "Black on black with one texture shift — that's the move."
+  • "Roll the cuff. Don't roll the hem. Trust me."
+  • "One statement only — the rest stays quiet."
+  • "Loose top, slim bottom. Or vice versa. Never both loose."
+NEVER: "perfect for", "ideal for", "this outfit is great for" — that's marketing copy, not styling advice.
 
-━━━ OUTPUT JSON (no markdown, no prose) ━━━
+━━━ OUTPUT JSON (no markdown, no prose, no commentary before/after) ━━━
 {"outfits":[{
-  "name":"Short evocative title",
+  "name":"Short evocative title (2-4 words)",
   "template":"${occ.templates[0]}",
   "trendContext":"One-line aesthetic context",
   "pieceIds":[1,2,3],
