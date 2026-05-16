@@ -334,17 +334,22 @@ Outfits should feel: ${feels}
 ${p.wardrobeSummary}
 
 ━━━ BUILD 3 OUTFITS — STRICT REQUIREMENTS ━━━
+
+🚨 HARD CAP — LAYER COUNT IS NON-NEGOTIABLE 🚨
+Each outfit MUST contain ${occ.layerCount.min}–${occ.layerCount.max} non-footwear pieces. NEVER exceed ${occ.layerCount.max}.
+Footwear is separate (one shoe slot, doesn't count toward the cap).
+If wardrobe lacks ideal pieces for this occasion: lean toward the MINIMUM (${occ.layerCount.min} pieces). Restraint is a stylist's mark — do NOT add a third or fourth top "to compensate". A clean 2-piece "closest match" beats a cluttered 4-piece reach.
+
 1. Each outfit MUST use a DIFFERENT archetype from: ${templateList}
 2. The dominant piece in each outfit (the hero piece — the one that defines the outfit's identity) MUST be different across all 3 outfits. Do NOT use the same tee/shirt as the anchor twice.
 3. Avoid simple "jacket-swap" variations — each outfit must have distinct visual energy.
 4. Set "template" to the archetype name you used.
-5. Layer count must respect ${occ.layerCount.min}–${occ.layerCount.max} pieces.
-6. Only use piece IDs that exist in the wardrobe above.
-7. Formality must be consistent within an outfit.
-8. Colors must harmonize per the preferred palette above.
-9. ${p.theme === 'Office' ? 'Office HARD RULE: no pieces with pieceRole:"hero" if their colorSaturation is "bold". Tonal/anchor pieces only.' : 'If wardrobe has hero pieces, at least 1 outfit SHOULD feature one as the focal point.'}
-10. If wardrobe genuinely lacks an archetype's required slot, gracefully degrade to a similar archetype — never invent piece IDs.
-${p.anchorItemId ? `11. MANDATORY: piece ID:${p.anchorItemId} must appear in EVERY outfit's pieceIds.` : ''}
+5. ONLY include piece IDs that exist in the wardrobe above. Never invent IDs.
+6. Formality must be consistent within an outfit. Never mix athletic with business-casual or formal.
+7. Colors must harmonize per the preferred palette above.
+8. ${p.theme === 'Office' ? 'Office HARD RULE: prioritize button-down shirts, polos, blazers, and tailored trousers. If wardrobe has a button-down shirt or blazer with formality:"business-casual" or "formal", USE IT — do not default to a tee or casual shirt. NO pieces with pieceRole:"hero" if colorSaturation is "bold". Tonal/anchor pieces only.' : p.theme === 'Vacation' || p.theme === 'Travel' ? `${p.theme} HARD RULE: NEVER include leather jackets, heavy bombers, turtlenecks, suit jackets, or heavy outerwear. Stay light, simple, comfortable. Max ${occ.layerCount.max} pieces — if you cannot meet the archetype with ${occ.layerCount.max} or fewer pieces from this wardrobe, return a minimal 2-piece outfit with matchQuality:"closest".` : 'If wardrobe has hero pieces, at least 1 outfit SHOULD feature one as the focal point.'}
+9. If wardrobe genuinely lacks an archetype's required slot, gracefully degrade to a similar archetype AND set matchQuality:"closest" — never invent piece IDs and never pad with extras.
+${p.anchorItemId ? `10. MANDATORY: piece ID:${p.anchorItemId} must appear in EVERY outfit's pieceIds.` : ''}
 
 ━━━ TIP VOICE ━━━
 Examples: "The bomber does the talking — let everything else whisper." | "Cuff the sleeves once. Untuck halfway." | "Leave the shirt open — it changes everything."

@@ -156,7 +156,7 @@ router.post('/', async (req: Request, res: Response) => {
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
       }),
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Gemini timed out after 40s')), 40_000)
+        setTimeout(() => reject(new Error('Gemini timed out after 60s')), 60_000)
       ),
     ]);
 
@@ -238,6 +238,8 @@ function buildFallback(wardrobe: any[], theme: string, anchor: { id: number; nam
 // This eliminates wardrobe noise + cuts ~50-70% of input tokens for medium+
 // wardrobes, dropping suggest latency by 3-6 seconds.
 type ScorableItem = {
+  category: string;
+  subcategory: string | null;
   formality: string | null;
   style: string | null;
   occasion_tags: string | null;
@@ -270,7 +272,19 @@ function scoreItem(item: ScorableItem, theme: string, themeKey: string, allowed:
     score += 2;
   }
 
-  // 6. Hard incompatibilities (strong negative)
+  // 6. OFFICE-specific strong preferences ────────────────────────────────
+  if (theme === 'Office') {
+    // Big boost for formal shirts / blazers / trousers — the Office archetype anchors
+    const sub = (item.subcategory ?? '').toLowerCase();
+    if (item.category === 'Tops' && /shirt|button|oxford|polo/.test(sub) && item.formality !== 'casual') score += 6;
+    if (item.category === 'Outerwear' && /blazer|suit/.test(sub)) score += 6;
+    if (item.category === 'Bottoms' && /trouser|chino|tailored/.test(sub)) score += 4;
+    // Soft penalty: casual tees lose ground when better Office options exist
+    if (item.category === 'Tops' && /t-shirt|tee|hoodie|sweatshirt/.test(sub)) score -= 2;
+    if (item.category === 'Bottoms' && /short|cargo|jogger/.test(sub)) score -= 4;
+  }
+
+  // 7. Hard incompatibilities (strong negative)
   if (item.formality === 'athletic' && theme !== 'Travel' && theme !== 'Weekend') score -= 10;
   if (item.style === 'Ethnic' && (theme === 'Office' || theme === 'Travel' || theme === 'Weekend' || theme === 'Vacation')) score -= 8;
   if (theme === 'Office' && item.color_saturation === 'bold') score -= 5;
@@ -280,16 +294,74 @@ function scoreItem(item: ScorableItem, theme: string, themeKey: string, allowed:
 }
 
 // ── Validation pass ────────────────────────────────────────────────────────
-// Enforces the constraints the prompt asked Gemini to follow, but that Gemini
-// sometimes ignores. Soft validation: we don't reject outfits, we annotate
-// them so the frontend (or future retry logic) can react.
+// Hard validation: actually trims outfits that violate constraints. Soft tags
+// other issues onto matchQuality:'closest'.
 type WardrobeItem = {
   id: number;
+  name: string;
   category: string;
   piece_role:       string | null;
+  layer_role:       string | null;
   color_saturation: string | null;
   formality:        string | null;
 };
+
+// Trim outfit pieces to a max non-footwear count. Picks pieces by priority:
+//   1. The hero piece (if any) always stays
+//   2. One bottom is always kept (or one standalone like a dress)
+//   3. Tops are kept in layer-role priority: outer → mid → base (one of each)
+function trimToMaxLayers(outfit: AiOutfit, byId: Map<number, WardrobeItem>, maxLayers: number): AiOutfit {
+  const pieces = (outfit.pieceIds ?? []).map(id => byId.get(id)).filter(Boolean) as WardrobeItem[];
+  const footwear = pieces.filter(p => p.category === 'Shoes' || p.category === 'Accessories');
+  const nonFootwear = pieces.filter(p => p.category !== 'Shoes' && p.category !== 'Accessories');
+
+  if (nonFootwear.length <= maxLayers) return outfit;
+
+  const keep: WardrobeItem[] = [];
+
+  // 1. Hero piece — always
+  const hero = nonFootwear.find(p => p.id === outfit.heroPieceId);
+  if (hero) keep.push(hero);
+
+  // 2. One standalone (dress/kurta etc) OR one bottom
+  const standalone = nonFootwear.find(p =>
+    !keep.includes(p) && (p.layer_role === 'standalone' || p.category === 'Dress'),
+  );
+  if (standalone && keep.length < maxLayers) {
+    keep.push(standalone);
+  } else {
+    const bottom = nonFootwear.find(p => !keep.includes(p) && p.category === 'Bottoms');
+    if (bottom && keep.length < maxLayers) keep.push(bottom);
+  }
+
+  // 3. Fill remaining with tops, deduped by layer_role, preferring outer > mid > base
+  const remainingTops = nonFootwear
+    .filter(p => !keep.includes(p))
+    .sort((a, b) => {
+      const rank = (r: string | null) => r === 'outer' ? 1 : r === 'mid' ? 2 : r === 'base' ? 3 : 4;
+      return rank(a.layer_role) - rank(b.layer_role);
+    });
+  const seenRoles = new Set<string>();
+  keep.forEach(p => { if (p.layer_role) seenRoles.add(p.layer_role); });
+  for (const t of remainingTops) {
+    if (keep.length >= maxLayers) break;
+    if (t.layer_role && seenRoles.has(t.layer_role)) continue;
+    if (t.layer_role) seenRoles.add(t.layer_role);
+    keep.push(t);
+  }
+
+  const newIds = [...keep.map(p => p.id), ...footwear.map(p => p.id)];
+  const newNames = newIds.map(id => byId.get(id)?.name).filter(Boolean) as string[];
+
+  console.warn(`✂️  Trimmed outfit "${outfit.name}" from ${nonFootwear.length} to ${keep.length} non-footwear pieces`);
+
+  return {
+    ...outfit,
+    pieceIds: newIds,
+    pieces: newNames,
+    matchQuality: 'closest',
+  };
+}
 
 function validateOutfits(outfits: AiOutfit[], theme: string, wardrobe: WardrobeItem[]): AiOutfit[] {
   const occ = getOccasionPrompt(theme);
@@ -299,14 +371,17 @@ function validateOutfits(outfits: AiOutfit[], theme: string, wardrobe: WardrobeI
   const seenHeroes = new Set<number>();
   const seenAnchors = new Set<number>();
 
-  return outfits.map((outfit, idx) => {
+  return outfits.map((rawOutfit, idx) => {
+    // 0. HARD trim: enforce max layer count by dropping excess pieces
+    const outfit = trimToMaxLayers(rawOutfit, byId, occ.layerCount.max);
+
     const ids = (outfit.pieceIds ?? []).filter(id => typeof id === 'number');
     const pieces = ids.map(id => byId.get(id)).filter(Boolean) as WardrobeItem[];
 
-    // 1. Layer count check (pieces excluding footwear)
+    // 1. Layer count check (post-trim — should only fire if outfit is BELOW min)
     const nonFootwear = pieces.filter(p => p.category !== 'Shoes' && p.category !== 'Accessories');
     const layerCount = nonFootwear.length;
-    const layerOK = layerCount >= occ.layerCount.min && layerCount <= occ.layerCount.max;
+    const layerOK = layerCount >= occ.layerCount.min;
 
     // 2. Hero / dominant-piece diversity check
     const heroId = outfit.heroPieceId
@@ -335,7 +410,7 @@ function validateOutfits(outfits: AiOutfit[], theme: string, wardrobe: WardrobeI
 
     // Build annotations — kept on the outfit so frontend can see what's off
     const issues: string[] = [];
-    if (!layerOK)         issues.push(`layer-count ${layerCount} outside ${occ.layerCount.min}–${occ.layerCount.max}`);
+    if (!layerOK)         issues.push(`layer-count ${layerCount} below min ${occ.layerCount.min}`);
     if (heroDuplicate)    issues.push(`hero-duplicate (outfit ${idx + 1} reuses dominant piece ID:${heroId})`);
     if (anchorReuse)      issues.push('anchor-reuse');
     if (paletteViolation) issues.push('palette-violation: bold piece in Office outfit');
