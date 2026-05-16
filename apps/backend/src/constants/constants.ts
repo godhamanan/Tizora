@@ -685,9 +685,34 @@ Sportswear: formality="athletic". Occasions=["sports","gym","run","yoga"] ONLY. 
 
 ━━━ FIELD VOCABULARY ━━━
 category: Tops | Bottoms | Kurta | Saree | Lehenga | Sherwani | Dupatta | Dress | Outerwear | Shoes | Accessories
-  Outerwear subcategories: Blazer | Suit Jacket | Tuxedo | Bandhgala | Jacket | Coat | Cardigan
+  Tops subcategories: T-Shirt | Polo | Henley | Button-Down | Oxford | Dress Shirt | Tank | Tunic | Crop Top | Bodysuit | Blouse | Sweater | Knit | Hoodie | Sweatshirt | Turtleneck | Mock-Neck
+  Bottoms subcategories: Jeans | Chinos | Trousers | Cargo Pants | Joggers | Sweatpants | Shorts | Cargo Shorts | Skirt | Pencil Skirt | Midi Skirt | Mini Skirt
+  Outerwear subcategories: Blazer | Suit Jacket | Tuxedo | Bandhgala | Bomber Jacket | Denim Jacket | Leather Jacket | Suede Jacket | Trench Coat | Overcoat | Parka | Cardigan | Overshirt | Vest
+  Shoes subcategories: Sneakers (White Leather / Athletic / Canvas / Chunky-Sole) | Loafers | Chelsea Boots | Derby / Oxford Shoes | Sandals | Slip-On | Mules | Heels | Ankle Boots | Knee-High Boots | Mojris
 season values: spring | summer | autumn | winter | all-season  (use array, can have multiple)
 genderStyle: menswear | womenswear | unisex
+
+━━━ OCCASION TAGGING — HARD RULES (these directly drive outfit suggestions) ━━━
+
+The "occasionTags" field MUST use these EXACT keys (these match the styling system, no synonyms):
+weekend | travel | vacation | office | date-night | night-out | festival | wedding | brunch
+Plus secondary tags: coffee-run | errands | lounge | gym | family-gathering | formal-event | photo-shoot | concert | beach | airport
+
+NON-NEGOTIABLE TAGGING RULES — apply religiously:
+• Button-Down / Oxford / Dress Shirt with formality "business-casual" or "formal" → MUST include "office" in occasionTags
+• Polo with formality "smart-casual" → MUST include "office" AND "weekend" in occasionTags
+• Blazer / Suit Jacket → MUST include "office" AND "date-night" in occasionTags
+• Tailored Trousers / Chinos → MUST include "office" in occasionTags
+• Bomber Jacket / Leather Jacket / Suede Jacket → MUST include "date-night" AND "night-out", NEVER "office"
+• Hoodie / Sweatshirt → MUST include "travel" AND "weekend", NEVER "office" or "date-night"
+• Cargo Pants / Cargo Shorts → MUST include "travel" AND "weekend", NEVER "office"
+• Joggers / Sweatpants → "travel" + "weekend" + "gym" ONLY, NEVER "office" or "date-night"
+• Linen Shirt / Linen Trousers / Resort Print → MUST include "vacation" AND "beach", NEVER "office"
+• Sandals → "vacation" + "beach" ONLY, NEVER "office" or "date-night" or "night-out"
+• Kurta / Saree / Lehenga / Sherwani → "festival" + "wedding" + "family-gathering" ONLY, NEVER "office" or "gym"
+• Sportswear (athletic formality) → "gym" + "travel" ONLY, NEVER "office" or "wedding" or "date-night"
+• Graphic Tee / Slogan Tee → "weekend" + "travel" ONLY, NEVER "office" or "date-night"
+• Sequin / Satin / Bold-saturation pieces → "night-out" + "date-night" + (if appropriate) "festival" / "wedding"
 
 ━━━ OUTPUT RULES ━━━
 • Return ONLY the raw JSON object. No backticks, no prose.
@@ -840,6 +865,27 @@ Bandhgala → style="Ethnic"/"Fusion" → wedding, festive, dinner
 
 ━━━ ATHLETIC RULE ━━━
 Sportswear → formality="athletic" occasionTags: sports, gym, run, yoga ONLY. energy=["active","fresh"]
+
+━━━ OCCASION TAGGING — HARD RULES (these directly drive outfit suggestions) ━━━
+
+The "occasionTags" field MUST use these EXACT keys (these match the styling system, no synonyms):
+weekend | travel | vacation | office | date-night | night-out | festival | wedding | brunch
+Plus secondary tags: coffee-run | errands | lounge | gym | family-gathering | formal-event | photo-shoot | concert | beach | airport
+
+NON-NEGOTIABLE TAGGING RULES — apply religiously to every piece:
+• Button-Down / Oxford / Dress Shirt with formality "business-casual" or "formal" → MUST include "office" in occasionTags
+• Polo with formality "smart-casual" → MUST include "office" AND "weekend" in occasionTags
+• Blazer / Suit Jacket → MUST include "office" AND "date-night" in occasionTags
+• Tailored Trousers / Chinos → MUST include "office" in occasionTags
+• Bomber Jacket / Leather Jacket / Suede Jacket → MUST include "date-night" AND "night-out", NEVER "office"
+• Hoodie / Sweatshirt → MUST include "travel" AND "weekend", NEVER "office" or "date-night"
+• Cargo Pants / Cargo Shorts → MUST include "travel" AND "weekend", NEVER "office"
+• Joggers / Sweatpants → "travel" + "weekend" + "gym" ONLY, NEVER "office" or "date-night"
+• Linen Shirt / Linen Trousers / Resort Print → MUST include "vacation" AND "beach", NEVER "office"
+• Sandals → "vacation" + "beach" ONLY, NEVER "office" or "date-night" or "night-out"
+• Kurta / Saree / Lehenga / Sherwani → "festival" + "wedding" + "family-gathering" ONLY, NEVER "office" or "gym"
+• Graphic / Slogan Tee → "weekend" + "travel" ONLY, NEVER "office" or "date-night"
+• Sequin / Satin / Bold-saturation piece → "night-out" + "date-night" + (if appropriate) "festival" / "wedding"
 
 ━━━ STYLING INTELLIGENCE — these 7 fields drive outfit construction (fill thoughtfully) ━━━
 colorUndertone   warm (red/yellow bias: camel/cream/olive/rust) | cool (blue/green bias: navy/mint/slate) | neutral (true black/white/charcoal)
