@@ -300,66 +300,106 @@ type WardrobeItem = {
   id: number;
   name: string;
   category: string;
+  subcategory:      string | null;
+  pattern:          string | null;
   piece_role:       string | null;
   layer_role:       string | null;
   color_saturation: string | null;
   formality:        string | null;
 };
 
-// Trim outfit pieces to a max non-footwear count. Picks pieces by priority:
-//   1. The hero piece (if any) always stays
-//   2. One bottom is always kept (or one standalone like a dress)
-//   3. Tops are kept in layer-role priority: outer → mid → base (one of each)
-function trimToMaxLayers(outfit: AiOutfit, byId: Map<number, WardrobeItem>, maxLayers: number): AiOutfit {
+// Enforce hard structural rules a real stylist follows:
+//   - Exactly 1 bottom (drop extras)
+//   - At most 1 outer layer (drop extras)
+//   - At most 1 patterned piece (drop extras if 2+)
+//   - Drop pieces to fit maxLayers cap, preferring hero + bottom + 1 of each layer role
+function enforceOutfitRules(
+  outfit: AiOutfit,
+  byId: Map<number, WardrobeItem>,
+  maxLayers: number,
+): { outfit: AiOutfit; trimmed: boolean } {
   const pieces = (outfit.pieceIds ?? []).map(id => byId.get(id)).filter(Boolean) as WardrobeItem[];
   const footwear = pieces.filter(p => p.category === 'Shoes' || p.category === 'Accessories');
   const nonFootwear = pieces.filter(p => p.category !== 'Shoes' && p.category !== 'Accessories');
 
-  if (nonFootwear.length <= maxLayers) return outfit;
+  const heroId = outfit.heroPieceId;
+  const isPatterned = (p: WardrobeItem) => !!p.pattern && !/^(solid|plain)?$/i.test(p.pattern);
+
+  // Sort non-footwear by keep-priority:
+  //   hero > standalone (dress) > bottom > outer > mid > base > other
+  // Earlier-listed wins when we dedupe categories.
+  const priority = (p: WardrobeItem) => {
+    if (p.id === heroId) return 0;
+    if (p.layer_role === 'standalone' || p.category === 'Dress') return 1;
+    if (p.category === 'Bottoms') return 2;
+    if (p.layer_role === 'outer' || p.category === 'Outerwear') return 3;
+    if (p.layer_role === 'mid') return 4;
+    if (p.layer_role === 'base' || p.category === 'Tops') return 5;
+    return 6;
+  };
+  const ranked = [...nonFootwear].sort((a, b) => priority(a) - priority(b));
 
   const keep: WardrobeItem[] = [];
+  let hasBottom = false;
+  let hasOuter = false;
+  let hasStandalone = false;
+  let patternedCount = 0;
+  const seenLayerRoles = new Set<string>();
 
-  // 1. Hero piece — always
-  const hero = nonFootwear.find(p => p.id === outfit.heroPieceId);
-  if (hero) keep.push(hero);
-
-  // 2. One standalone (dress/kurta etc) OR one bottom
-  const standalone = nonFootwear.find(p =>
-    !keep.includes(p) && (p.layer_role === 'standalone' || p.category === 'Dress'),
-  );
-  if (standalone && keep.length < maxLayers) {
-    keep.push(standalone);
-  } else {
-    const bottom = nonFootwear.find(p => !keep.includes(p) && p.category === 'Bottoms');
-    if (bottom && keep.length < maxLayers) keep.push(bottom);
-  }
-
-  // 3. Fill remaining with tops, deduped by layer_role, preferring outer > mid > base
-  const remainingTops = nonFootwear
-    .filter(p => !keep.includes(p))
-    .sort((a, b) => {
-      const rank = (r: string | null) => r === 'outer' ? 1 : r === 'mid' ? 2 : r === 'base' ? 3 : 4;
-      return rank(a.layer_role) - rank(b.layer_role);
-    });
-  const seenRoles = new Set<string>();
-  keep.forEach(p => { if (p.layer_role) seenRoles.add(p.layer_role); });
-  for (const t of remainingTops) {
+  for (const p of ranked) {
     if (keep.length >= maxLayers) break;
-    if (t.layer_role && seenRoles.has(t.layer_role)) continue;
-    if (t.layer_role) seenRoles.add(t.layer_role);
-    keep.push(t);
+
+    // 1-standalone: a dress/kurta is the whole outfit, max 1
+    if (p.layer_role === 'standalone' || p.category === 'Dress' || p.category === 'Kurta' || p.category === 'Saree' || p.category === 'Lehenga') {
+      if (hasStandalone) continue;
+      hasStandalone = true;
+      keep.push(p);
+      continue;
+    }
+
+    // 1-bottom: only one Bottoms piece
+    if (p.category === 'Bottoms') {
+      if (hasBottom) continue;
+      hasBottom = true;
+      keep.push(p);
+      continue;
+    }
+
+    // 1-outer: only one Outerwear piece (or one layer_role=outer)
+    const isOuter = p.category === 'Outerwear' || p.layer_role === 'outer';
+    if (isOuter) {
+      if (hasOuter) continue;
+      hasOuter = true;
+    }
+
+    // Dedupe by layer_role (so we don't have 2 base layers like tee + tee)
+    if (p.layer_role && p.layer_role !== 'standalone' && seenLayerRoles.has(p.layer_role)) continue;
+
+    // Pattern count cap (at most 1 patterned piece per outfit)
+    if (isPatterned(p) && patternedCount >= 1) continue;
+    if (isPatterned(p)) patternedCount++;
+
+    if (p.layer_role) seenLayerRoles.add(p.layer_role);
+    keep.push(p);
   }
 
+  const trimmed = keep.length < nonFootwear.length;
   const newIds = [...keep.map(p => p.id), ...footwear.map(p => p.id)];
   const newNames = newIds.map(id => byId.get(id)?.name).filter(Boolean) as string[];
 
-  console.warn(`✂️  Trimmed outfit "${outfit.name}" from ${nonFootwear.length} to ${keep.length} non-footwear pieces`);
+  if (trimmed) {
+    const dropped = nonFootwear.filter(p => !keep.includes(p)).map(p => p.name).join(', ');
+    console.warn(`✂️  Trimmed outfit "${outfit.name}" — dropped ${nonFootwear.length - keep.length} pieces: ${dropped}`);
+  }
 
   return {
-    ...outfit,
-    pieceIds: newIds,
-    pieces: newNames,
-    matchQuality: 'closest',
+    outfit: {
+      ...outfit,
+      pieceIds: newIds,
+      pieces: newNames,
+      matchQuality: trimmed ? 'closest' : (outfit.matchQuality ?? 'exact'),
+    },
+    trimmed,
   };
 }
 
@@ -372,11 +412,11 @@ function validateOutfits(outfits: AiOutfit[], theme: string, wardrobe: WardrobeI
   const seenAnchors = new Set<number>();
 
   return outfits.map((rawOutfit, idx) => {
-    // 0. HARD trim: enforce max layer count by dropping excess pieces
-    const outfit = trimToMaxLayers(rawOutfit, byId, occ.layerCount.max);
+    // 0. HARD enforce: 1-bottom, 1-outer, max-1-pattern, max-layers cap
+    const { outfit } = enforceOutfitRules(rawOutfit, byId, occ.layerCount.max);
 
-    const ids = (outfit.pieceIds ?? []).filter(id => typeof id === 'number');
-    const pieces = ids.map(id => byId.get(id)).filter(Boolean) as WardrobeItem[];
+    const ids = (outfit.pieceIds ?? []).filter((id: any) => typeof id === 'number');
+    const pieces = ids.map((id: number) => byId.get(id)).filter(Boolean) as WardrobeItem[];
 
     // 1. Layer count check (post-trim — should only fire if outfit is BELOW min)
     const nonFootwear = pieces.filter(p => p.category !== 'Shoes' && p.category !== 'Accessories');
