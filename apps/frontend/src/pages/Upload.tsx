@@ -188,6 +188,14 @@ export default function Upload() {
       })(),
       energy:          s.energy?.join(', ')       ?? null,
       works_best_for:  s.worksBestFor?.join(', ') ?? null,
+      // Phase 0 styling intelligence — drives smarter outfit suggestions
+      color_undertone:   s.colorUndertone   ?? null,
+      color_saturation:  s.colorSaturation  ?? null,
+      piece_role:        s.pieceRole        ?? null,
+      layer_role:        s.layerRole        ?? null,
+      fabric_weight:     s.fabricWeight     ?? null,
+      color_pairs:       s.colorPairs?.join(', ') ?? null,
+      contrast_affinity: s.contrastAffinity ?? null,
       image_base64:    s.image,
     };
   }

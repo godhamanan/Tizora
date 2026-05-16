@@ -27,6 +27,14 @@ export interface ItemClassification {
   occasionTags: string[];   // weekend, travel, college, coffee-run, airport, brunch
   energy: string[];         // effortless, comfortable, laid-back, polished, confident
   worksBestFor: string[];   // "daytime casual looks", "airport layering", "smart-casual dinners"
+  // Phase 0 styling intelligence — drives smarter outfit composition ──────
+  colorUndertone?:   'warm' | 'cool' | 'neutral';
+  colorSaturation?:  'muted' | 'medium' | 'bold';
+  pieceRole?:        'hero' | 'anchor' | 'neutral';
+  layerRole?:        'base' | 'mid' | 'outer' | 'standalone';
+  fabricWeight?:     'light' | 'medium' | 'heavy';
+  colorPairs?:       string[];
+  contrastAffinity?: 'tonal' | 'contrastful' | 'flexible';
 }
 
 function parseJSON<T>(raw: string): T {

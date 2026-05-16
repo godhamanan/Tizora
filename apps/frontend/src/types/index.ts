@@ -19,6 +19,14 @@ export interface ScannedItem {
   occasionTags: string[];
   energy: string[];
   worksBestFor: string[];
+  // Phase 0 styling intelligence
+  colorUndertone?:   'warm' | 'cool' | 'neutral';
+  colorSaturation?:  'muted' | 'medium' | 'bold';
+  pieceRole?:        'hero' | 'anchor' | 'neutral';
+  layerRole?:        'base' | 'mid' | 'outer' | 'standalone';
+  fabricWeight?:     'light' | 'medium' | 'heavy';
+  colorPairs?:       string[];
+  contrastAffinity?: 'tonal' | 'contrastful' | 'flexible';
   image: string;
   imageUrl?: string;
 }
@@ -64,12 +72,20 @@ export interface PieceImage {
   image_url: string | null;
 }
 
+export interface StylingNote { pieceId: number; note: string }
+
 export interface OutfitSuggestion {
   name: string;
+  template?: string;            // archetype name (e.g. "Open Shirt Layer")
   trendContext: string;
   pieceIds: number[];
   pieces: string[];
   pieceImages: PieceImage[];
+  heroPieceId?: number;
+  layeringOrder?: number[];
+  stylingNotes?: StylingNote[];
+  textureStory?: string;
+  whyItWorks?: string;
   occasion: string;
   tip: string;
   mood: string;

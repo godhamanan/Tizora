@@ -163,6 +163,14 @@ export async function runMigrations(): Promise<void> {
     await addColumnIfMissing('clothes', col, 'text');
   }
 
+  // ── 010: Phase 0 styling intelligence — drives smarter suggestions ──────
+  for (const col of [
+    'color_undertone', 'color_saturation', 'piece_role',
+    'layer_role', 'fabric_weight', 'color_pairs', 'contrast_affinity',
+  ]) {
+    await addColumnIfMissing('clothes', col, 'text');
+  }
+
   // ── 007: drop legacy columns ─────────────────────────────────────────────
   for (const col of ['aesthetic','occasion','occasions','tags']) {
     await dropColumnIfExists('clothes', col);

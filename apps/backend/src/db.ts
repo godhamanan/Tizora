@@ -29,6 +29,14 @@ export interface ClothesTable {
   occasion_tags: string | null;  // JSON array of specific scenarios (weekend/coffee-run/airport)
   energy: string | null;         // JSON array of energy descriptors (effortless/laid-back)
   works_best_for: string | null; // JSON array of styling contexts
+  // Phase 0 styling intelligence — feeds smarter outfit suggestions
+  color_undertone:   string | null; // 'warm' | 'cool' | 'neutral'
+  color_saturation:  string | null; // 'muted' | 'medium' | 'bold'
+  piece_role:        string | null; // 'hero' | 'anchor' | 'neutral'
+  layer_role:        string | null; // 'base' | 'mid' | 'outer' | 'standalone'
+  fabric_weight:     string | null; // 'light' | 'medium' | 'heavy'
+  color_pairs:       string | null; // comma-separated color names
+  contrast_affinity: string | null; // 'tonal' | 'contrastful' | 'flexible'
   image_base64: string | null;
   image_url: string | null;
   favorite: Generated<boolean>;

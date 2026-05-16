@@ -1,16 +1,24 @@
 import express, { Request, Response } from 'express';
 import { GoogleGenAI } from '@google/genai';
 import { db } from '../db.js';
-import { GEMINI_MODEL, OCCASION_FORMALITY_MAP, buildSuggestPrompt } from '../constants/constants.js';
+import { GEMINI_MODEL, OCCASION_FORMALITY_MAP, buildSuggestPrompt, getOccasionPrompt } from '../constants/constants.js';
 
 const router = express.Router();
 const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY! });
 
+interface StylingNote { pieceId: number; note: string }
+
 interface AiOutfit {
   name: string;
+  template?: string;          // archetype name, e.g. "Open Shirt Layer"
   trendContext: string;
   pieceIds: number[];
   pieces: string[];
+  heroPieceId?: number;       // dominant piece — used for diversity check
+  layeringOrder?: number[];   // pieceIds in base→outer order
+  stylingNotes?: StylingNote[];
+  textureStory?: string;
+  whyItWorks?: string;
   occasion: string;
   tip: string;
   mood: string;
@@ -63,6 +71,9 @@ router.post('/', async (req: Request, res: Response) => {
         'formality', 'gender_style', 'season', 'style',
         'pairs_well_with', 'layers_with',
         'style_vibes', 'occasion_tags', 'energy', 'works_best_for',
+        // Phase 0 styling intelligence
+        'color_undertone', 'color_saturation', 'piece_role',
+        'layer_role', 'fabric_weight', 'color_pairs', 'contrast_affinity',
       ])
       .where('user_id', '=', userId)
       .execute();
@@ -87,15 +98,27 @@ router.post('/', async (req: Request, res: Response) => {
     const wardrobeSummary = toSend
       .map(c => {
         const colors = [c.color, c.secondary_color].filter(Boolean).join('/');
-        const meta   = [
+        // Promote Phase 0 styling fields to the front — they drive composition
+        const styling = [
+          c.piece_role        ? `role:${c.piece_role}`               : null,  // hero/anchor/neutral
+          c.layer_role        ? `layer:${c.layer_role}`              : null,  // base/mid/outer/standalone
+          c.color_saturation  ? `saturation:${c.color_saturation}`   : null,  // muted/medium/bold
+          c.color_undertone   ? `undertone:${c.color_undertone}`     : null,
+          c.color_pairs       ? `pairsColors:${c.color_pairs}`       : null,  // explicit color names
+          c.contrast_affinity ? `contrast:${c.contrast_affinity}`    : null,
+          c.fabric_weight     ? `weight:${c.fabric_weight}`          : null,
+        ].filter(Boolean).join(' | ');
+        const meta = [
           c.subcategory, c.fabric, c.fit, c.formality, c.gender_style,
+          c.layers_with     ? `layersWith:${c.layers_with}`      : null,
           c.occasion_tags   ? `occasionTags:${c.occasion_tags}`  : null,
           c.style_vibes     ? `vibes:${c.style_vibes}`           : null,
           c.energy          ? `energy:${c.energy}`               : null,
           c.works_best_for  ? `worksBestFor:${c.works_best_for}` : null,
           c.pairs_well_with ? `pairsWell:${c.pairs_well_with}`   : null,
         ].filter(Boolean).join(' | ');
-        return `[ID:${c.id}] ${c.name} — ${c.category}, ${colors}, ${c.pattern ?? 'solid'}, ${c.style ?? 'Western'}${meta ? ` | ${meta}` : ''}`;
+        const heroTag = c.piece_role === 'hero' ? ' [HERO]' : '';
+        return `[ID:${c.id}]${heroTag} ${c.name} — ${c.category}, ${colors}, ${c.pattern ?? 'solid'}, ${c.style ?? 'Western'}${styling ? ` || ${styling}` : ''}${meta ? ` | ${meta}` : ''}`;
       })
       .join('\n');
 
@@ -142,6 +165,9 @@ router.post('/', async (req: Request, res: Response) => {
     if (!parsed.outfits?.length) {
       parsed = { outfits: buildFallback(toSend, theme, anchorItem) };
     }
+
+    // ── Validation pass: enforce diversity + layer count + Office tonal rule ─
+    parsed.outfits = validateOutfits(parsed.outfits, theme, toSend);
 
     const allIds = [...new Set(
       parsed.outfits.flatMap(o => o.pieceIds ?? [])
@@ -196,6 +222,83 @@ function buildFallback(wardrobe: any[], theme: string, anchor: { id: number; nam
   if (anchor && !pieces.find(p => p.id === anchor.id)) pieces.unshift({ id: anchor.id, name: anchor.name });
   if (!pieces.length) wardrobe.slice(0, 2).forEach(i => pieces.push({ id: i.id, name: i.name }));
   return [{ name: `Closest Match — ${theme}`, trendContext: 'Smart Casual', pieceIds: pieces.map(p => p.id), pieces: pieces.map(p => p.name), occasion: theme, tip: `Best available — add a ${t}-leaning piece to complete the look.`, mood: 'Adaptive', matchQuality: 'closest' }];
+}
+
+// ── Validation pass ────────────────────────────────────────────────────────
+// Enforces the constraints the prompt asked Gemini to follow, but that Gemini
+// sometimes ignores. Soft validation: we don't reject outfits, we annotate
+// them so the frontend (or future retry logic) can react.
+type WardrobeItem = {
+  id: number;
+  category: string;
+  piece_role:       string | null;
+  color_saturation: string | null;
+  formality:        string | null;
+};
+
+function validateOutfits(outfits: AiOutfit[], theme: string, wardrobe: WardrobeItem[]): AiOutfit[] {
+  const occ = getOccasionPrompt(theme);
+  const byId = new Map<number, WardrobeItem>(wardrobe.map(w => [w.id, w]));
+
+  // Track heroes/anchors across outfits for diversity check
+  const seenHeroes = new Set<number>();
+  const seenAnchors = new Set<number>();
+
+  return outfits.map((outfit, idx) => {
+    const ids = (outfit.pieceIds ?? []).filter(id => typeof id === 'number');
+    const pieces = ids.map(id => byId.get(id)).filter(Boolean) as WardrobeItem[];
+
+    // 1. Layer count check (pieces excluding footwear)
+    const nonFootwear = pieces.filter(p => p.category !== 'Shoes' && p.category !== 'Accessories');
+    const layerCount = nonFootwear.length;
+    const layerOK = layerCount >= occ.layerCount.min && layerCount <= occ.layerCount.max;
+
+    // 2. Hero / dominant-piece diversity check
+    const heroId = outfit.heroPieceId
+      ?? pieces.find(p => p.piece_role === 'hero')?.id
+      ?? pieces.find(p => p.piece_role === 'anchor')?.id
+      ?? ids[0];
+    const heroDuplicate = heroId !== undefined && seenHeroes.has(heroId);
+    if (heroId !== undefined) seenHeroes.add(heroId);
+
+    // Also flag anchor reuse (e.g. same dark jeans used in all 3) — softer warning
+    const anchorIds = pieces.filter(p => p.piece_role === 'anchor').map(p => p.id);
+    const anchorReuse = anchorIds.some(a => seenAnchors.has(a));
+    anchorIds.forEach(a => seenAnchors.add(a));
+
+    // 3. Office tonal-only rule: no bold-saturated pieces
+    let paletteViolation = false;
+    if (theme === 'Office') {
+      paletteViolation = pieces.some(p => p.color_saturation === 'bold');
+    }
+
+    // 4. Formality consistency within outfit (no athletic + business-casual mix)
+    const formalities = new Set(pieces.map(p => p.formality).filter(Boolean));
+    const formalityClash = formalities.has('athletic') && (
+      formalities.has('business-casual') || formalities.has('formal') || formalities.has('festive')
+    );
+
+    // Build annotations — kept on the outfit so frontend can see what's off
+    const issues: string[] = [];
+    if (!layerOK)         issues.push(`layer-count ${layerCount} outside ${occ.layerCount.min}–${occ.layerCount.max}`);
+    if (heroDuplicate)    issues.push(`hero-duplicate (outfit ${idx + 1} reuses dominant piece ID:${heroId})`);
+    if (anchorReuse)      issues.push('anchor-reuse');
+    if (paletteViolation) issues.push('palette-violation: bold piece in Office outfit');
+    if (formalityClash)   issues.push('formality-clash');
+
+    if (issues.length) {
+      console.warn(`⚠️  Outfit ${idx + 1} "${outfit.name}" issues: ${issues.join('; ')}`);
+    }
+
+    return {
+      ...outfit,
+      heroPieceId: heroId,
+      // Tag matchQuality 'closest' if any hard constraint was violated
+      matchQuality: (heroDuplicate || paletteViolation || formalityClash)
+        ? 'closest'
+        : (outfit.matchQuality ?? 'exact'),
+    };
+  });
 }
 
 export default router;

@@ -61,6 +61,9 @@ router.post('/', async (req: Request, res: Response) => {
       formality, season, style, gender_style,
       layers_with, pairs_well_with, style_notes,
       style_vibes, occasion_tags, energy, works_best_for,
+      // Phase 0 styling intelligence
+      color_undertone, color_saturation, piece_role,
+      layer_role, fabric_weight, color_pairs, contrast_affinity,
       image_base64, image_url,
     } = req.body;
 
@@ -108,6 +111,13 @@ router.post('/', async (req: Request, res: Response) => {
         occasion_tags:   occasion_tags   ?? null,
         energy:          energy          ?? null,
         works_best_for:  works_best_for  ?? null,
+        color_undertone:   color_undertone   ?? null,
+        color_saturation:  color_saturation  ?? null,
+        piece_role:        piece_role        ?? null,
+        layer_role:        layer_role        ?? null,
+        fabric_weight:     fabric_weight     ?? null,
+        color_pairs:       color_pairs       ?? null,
+        contrast_affinity: contrast_affinity ?? null,
         image_base64:    null,
         image_url:       finalImageUrl,
         user_id:         (req as any).userId,
