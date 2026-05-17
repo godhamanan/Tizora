@@ -339,34 +339,40 @@ export const OCCASION_PROMPTS: Record<string, OccasionPrompt> = {
 
   // ─── FESTIVE ───────────────────────────────────────────────────────────────
   'Festive': {
-    goal: 'Celebratory and expressive. Cultural reference if wardrobe is Ethnic-leaning; else Western festival energy.',
-    inspirationReference: 'Diwali rooftop / Holi morning if Ethnic. Coachella afternoon / music festival if Western. Always expressive, never plain office.',
-    styleDirection: ['celebratory', 'expressive', 'rich textures', 'culturally grounded'],
+    goal: 'Celebratory and expressive. Cultural reference if wardrobe is Ethnic-leaning; else clean Western festive energy.',
+    inspirationReference: 'Diwali rooftop / Holi morning if Ethnic. Coachella afternoon / Sangeet rooftop / music festival if Western. Always expressive — never office, never gym.',
+    styleDirection: ['celebratory', 'expressive', 'rich textures', 'culturally grounded', 'one expressive focal piece'],
     archetypes: [
-      { name: 'Kurta & Bottom',   composition: ['kurta (preferably embroidered or rich-tone)', 'churidar OR pants OR dark jeans', 'mojris OR clean sneakers'] },
-      { name: 'Fusion Layered',   composition: ['fusion overshirt OR short kurta', 'tee inside', 'jeans OR trousers', 'sneakers OR mojris'] },
-      { name: 'Statement Western',composition: ['statement printed OR embroidered shirt', 'dark trousers OR dark jeans', 'clean footwear'] },
-      { name: 'Elevated Casual',  composition: ['rich-tone knit OR linen shirt', 'dark trousers', 'boots OR loafers'] },
+      { name: 'Kurta & Bottom',    composition: ['kurta (preferably embroidered or rich-tone)', 'churidar OR pants OR dark jeans', 'mojris OR clean sneakers'] },
+      { name: 'Fusion Layered',    composition: ['fusion overshirt OR short kurta', 'tee inside', 'jeans OR trousers', 'sneakers OR mojris'] },
+      { name: 'Statement Western', composition: ['statement printed / embroidered / silk shirt (the focal piece)', 'dark trousers OR dark jeans', 'clean leather footwear'] },
+      { name: 'Elevated Casual',   composition: ['rich-tone knit OR linen shirt', 'dark trousers', 'boots OR loafers'] },
     ],
     goodExamples: [
       'Cream embroidered kurta + dark jeans + tan mojris',
       'Black short kurta over tee + dark trousers + white sneakers',
-      'Rust printed shirt + black trousers + brown chelsea boots',
+      'Rust printed silk shirt + black trousers + brown chelsea boots',
+      'Maroon linen shirt + cream trousers + tan loafers',
     ],
     badExamples: [
-      'Plain office button-down + chinos — no festival energy',
-      'Hoodie + sweatpants — far too casual',
-      'Suit + tie — too formal-corporate',
+      'Plain office button-down + chinos — no festive energy, reads boardroom',
+      'Hoodie + sweatpants — far too casual for celebration',
+      'Suit + tie — formal-corporate, not festive-expressive',
+      'Athletic tee + joggers — gym energy, completely wrong context',
     ],
     rules: [
       '2–4 pieces',
-      'STRONGLY prefer Ethnic archetypes if wardrobe has Ethnic pieces',
-      'AVOID plain western office shirts, sportswear, loungewear',
-      'Rich tones + textures encouraged',
+      'STRONGLY prefer Ethnic archetypes if wardrobe has Ethnic pieces (kurta, sherwani, etc.)',
+      'If wardrobe is purely Western: pivot to "Statement Western" — printed/silk/rich-tone shirts + dark bottoms',
+      'AVOID plain western office shirts, sportswear, loungewear, athletic wear',
+      'Rich tones + textures (silk, linen, embroidery) encouraged',
+      'ONE expressive focal piece per outfit — never two competing statements',
     ],
-    preferredColors: ['cream', 'maroon', 'gold-accent', 'navy', 'olive', 'rust', 'deep green', 'mustard'],
+    preferredColors: ['cream', 'maroon', 'gold-accent', 'navy', 'olive', 'rust', 'deep green', 'mustard', 'burgundy'],
     footwear: ['mojris', 'clean leather loafers', 'chelsea boots', 'clean white sneakers'],
-    outfitsShouldFeel: ['celebratory', 'expressive', 'culturally grounded'],
+    avoid: ['plain white office shirts', 'athletic wear', 'hoodies', 'sweatpants', 'flip-flops', 'distressed denim'],
+    silhouetteGuidance: ['expressive top + clean bottom', 'never bulky-on-bulky', 'let the hero piece breathe'],
+    outfitsShouldFeel: ['celebratory', 'expressive', 'culturally grounded', 'memorable'],
     layerCount: { min: 2, max: 4 },
     templates: ['Kurta & Bottom', 'Fusion Layered', 'Statement Western', 'Elevated Casual'],
     female: {
@@ -591,7 +597,7 @@ Return ONLY raw JSON. No markdown. No prose. No code fences.
   "pairsWellWith": ["blue jeans", "khaki chinos", "cargo pants", "tailored trousers"],
   "styleNotes": "Tuck for polish, leave out for ease. The most flexible piece in any wardrobe.",
   "styleVibes": ["minimal", "clean", "relaxed", "modern"],
-  "occasionTags": ["casual-outing", "travel", "college", "casual-day-out", "coffee-run", "errands", "movie-night"],
+  "occasionTags": ["casual-outing", "travel", "college", "brunch", "coffee-run", "errands", "movie-night"],
   "energy": ["effortless", "comfortable", "laid-back"],
   "worksBestFor": ["daytime casual looks", "airport layering", "relaxed everyday outfits", "weekend brunches"]
 }
@@ -686,16 +692,20 @@ Tuxedo: subcategory="Tuxedo", occasions=["wedding","gala","dinner"] — NEVER of
 Bandhgala: style="Ethnic" or "Fusion", occasions=["wedding","festive","dinner","reception"].
 
 ━━━ ATHLETIC RULE ━━━
-Sportswear: formality="athletic". Occasions=["sports","gym","run","yoga"] ONLY. Energy = ["active","fresh"].
+Sportswear: formality="athletic". Energy = ["active","fresh"].
+  occasionTags MUST be: "workout" + "gym" (always), PLUS "travel" if light/breathable.
+  NEVER: office, wedding, date-night, dinner, festive.
 
 ━━━ STRICT CLASSIFICATION CHECKS ━━━
 1. Button-down/Oxford → formality smart-casual or business-casual, MUST include "office" in occasions
-2. Kurta/Lehenga/Saree/Sherwani → style "Ethnic", MUST include festive or wedding, NEVER office
-3. Gym wear → athletic, occasions sports/gym ONLY
+2. Kurta/Lehenga/Saree/Sherwani → style "Ethnic", MUST include "festive" or "wedding", NEVER office
+3. Athletic / Gym wear → formality "athletic", MUST include "workout" AND "gym", NEVER office/wedding/date-night
 4. Never assign "office" to ethnic or athletic wear
 5. Never assign "festive"/"wedding" to t-shirts or basic Western casual
-6. Blazer → MUST include office in occasions
-7. Bandhgala → wedding/festive/dinner/reception, NEVER office/sports
+6. Blazer → MUST include "office" in occasions
+7. Bandhgala → "wedding"/"festive"/"dinner"/"reception", NEVER "office"/"workout"
+8. Joggers / Sweatpants / Track pants → MUST include "workout" + "casual-outing" + "travel", NEVER "office" or "date-night"
+9. Hoodie / Sweatshirt → MUST include "casual-outing" + "travel"; also "workout" if athletic-fabric
 
 ━━━ FIELD VOCABULARY ━━━
 category: Tops | Bottoms | Kurta | Saree | Lehenga | Sherwani | Dupatta | Dress | Outerwear | Shoes | Accessories
@@ -775,7 +785,7 @@ Each object MUST include "imageIndex" matching its position (0-based).
   "pairsWellWith": ["blue jeans", "khaki chinos", "cargo pants", "tailored trousers"],
   "styleNotes": "Tuck for polish, leave out for ease. The most flexible piece in any wardrobe.",
   "styleVibes": ["minimal", "clean", "relaxed", "modern"],
-  "occasionTags": ["casual-outing", "travel", "college", "casual-day-out", "coffee-run", "errands", "movie-night"],
+  "occasionTags": ["casual-outing", "travel", "college", "brunch", "coffee-run", "errands", "movie-night"],
   "energy": ["effortless", "comfortable", "laid-back"],
   "worksBestFor": ["daytime casual looks", "airport layering", "relaxed everyday outfits", "weekend brunches"]
 }]
@@ -878,7 +888,9 @@ Kurta/Lehenga/Saree/Sherwani → style="Ethnic" formality="festive"/"formal"
 Bandhgala → style="Ethnic"/"Fusion" → wedding, festive, dinner
 
 ━━━ ATHLETIC RULE ━━━
-Sportswear → formality="athletic" occasionTags: sports, gym, run, yoga ONLY. energy=["active","fresh"]
+Sportswear → formality="athletic" energy=["active","fresh"]
+  occasionTags MUST be: "workout" + "gym" (always), PLUS "travel" if light/breathable.
+  NEVER: office, wedding, date-night, dinner, festive.
 
 ━━━ OCCASION TAGGING — HARD RULES (these directly drive outfit suggestions) ━━━
 
