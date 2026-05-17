@@ -267,9 +267,16 @@ function scoreItem(item: ScorableItem, theme: string, themeKey: string, allowed:
   if ((theme === 'Date Night' || theme === 'Night Out') && item.layer_role === 'outer') score += 2;
 
   // 5. Energy match for casual occasions
-  if ((theme === 'Travel' || theme === 'Weekend') &&
+  if ((theme === 'Travel' || theme === 'Casual Outing') &&
       /comfortable|laid-back|relaxed|effortless/i.test(item.energy ?? '')) {
     score += 2;
+  }
+
+  // 5b. Athletic items score high for Workout
+  if (theme === 'Workout') {
+    if (item.formality === 'athletic') score += 8;
+    const sub = (item.subcategory ?? '').toLowerCase();
+    if (/jogger|sweatpant|hoodie|sweatshirt|tank|tee|short/.test(sub)) score += 3;
   }
 
   // 6. OFFICE-specific strong preferences ────────────────────────────────
@@ -285,8 +292,8 @@ function scoreItem(item: ScorableItem, theme: string, themeKey: string, allowed:
   }
 
   // 7. Hard incompatibilities (strong negative)
-  if (item.formality === 'athletic' && theme !== 'Travel' && theme !== 'Weekend') score -= 10;
-  if (item.style === 'Ethnic' && (theme === 'Office' || theme === 'Travel' || theme === 'Weekend' || theme === 'Vacation')) score -= 8;
+  if (item.formality === 'athletic' && theme !== 'Travel' && theme !== 'Casual Outing' && theme !== 'Workout') score -= 10;
+  if (item.style === 'Ethnic' && (theme === 'Office' || theme === 'Travel' || theme === 'Casual Outing' || theme === 'Workout')) score -= 8;
   if (theme === 'Office' && item.color_saturation === 'bold') score -= 5;
   if (theme === 'Office' && item.piece_role === 'hero' && item.color_saturation !== 'muted') score -= 3;
 

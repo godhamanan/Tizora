@@ -5,26 +5,26 @@ export const GEMINI_MODEL = 'gemini-2.5-flash';
 // ── Occasion rules (shared by suggest route + pre-filter) ──────────────────
 
 export const OCCASION_FORMALITY_MAP: Record<string, string[]> = {
-  'Weekend':    ['casual', 'smart-casual'],
-  'Date Night': ['smart-casual', 'business-casual'],
-  'Night Out':  ['smart-casual', 'business-casual'],
-  'Office':     ['business-casual', 'formal', 'smart-casual'],
-  'Festival':   ['festive', 'formal'],
-  'Wedding':    ['festive', 'formal'],
-  'Vacation':   ['casual', 'smart-casual'],
-  'Travel':     ['casual', 'smart-casual'],
+  'Casual Outing': ['casual', 'smart-casual'],
+  'Date Night':    ['smart-casual', 'business-casual'],
+  'Night Out':     ['smart-casual', 'business-casual'],
+  'Office':        ['business-casual', 'formal', 'smart-casual'],
+  'Festive':       ['festive', 'formal'],
+  'Wedding':       ['festive', 'formal'],
+  'Workout':       ['athletic', 'casual'],
+  'Travel':        ['casual', 'smart-casual'],
 };
 
 // Legacy shape — kept for backward compat / fallback only. New code uses OCCASION_PROMPTS below.
 export const OCCASION_RULES: Record<string, { formality: string; male: string; female: string; avoid: string }> = {
-  'Weekend':    { formality: 'casual',                        male: 'hoodies, oversized tees, joggers, casual shorts, clean sneakers.',               female: 'oversized knits, casual co-ords, casual dresses, sneakers.',                             avoid: 'formal, business-casual, festive, athletic' },
-  'Date Night': { formality: 'smart-casual to business-casual', male: 'fitted button-downs, dark slim jeans, chinos, chelsea boots, loafers.',          female: 'midi dresses, fitted tops with tailored trousers, wrap dresses, heels or ankle boots.', avoid: 'casual tees, hoodies, sportswear, heavy ethnic' },
-  'Night Out':  { formality: 'smart-casual to party',         male: 'statement shirts, dark slim jeans, leather jackets, chelsea boots.',              female: 'bodycon or mini dresses, satin tops, sequins, heels or strappy sandals.',              avoid: 'office wear, ethnic, sportswear, hoodies' },
-  'Office':     { formality: 'business-casual to formal',     male: 'Oxford/dress shirts, structured trousers, blazers, chinos, brogues. NO jeans, tees.', female: 'blazers, tailored trousers, pencil skirts, structured blouses, midi dresses.',      avoid: 'casual, party, festive, athletic, ripped jeans' },
-  'Festival':   { formality: 'festive to casual',             male: 'kurtas, indo-western fusion jackets, embroidered shirts, mojris.',                female: 'lehengas, salwar suits, anarkalis, indo-western fusion dresses, jhumkas.',             avoid: 'plain western office wear, sportswear, loungewear' },
-  'Wedding':    { formality: 'formal to festive',             male: 'sherwanis, bandhgalas, jodhpuris, formal suits, heavily embroidered kurtas.',     female: 'sarees, lehengas, heavily embellished salwar suits, anarkalis.',                      avoid: 'casual western, sportswear, loungewear, plain tees' },
-  'Vacation':   { formality: 'casual to resort-casual',       male: 'linen shirts, shorts, lightweight chinos, printed shirts, sandals.',              female: 'sundresses, co-ord sets, linen trousers, breezy tops, sandals.',                      avoid: 'formal, heavy fabrics, festive, office wear' },
-  'Travel':     { formality: 'casual to smart-casual',        male: 'joggers, comfortable chinos, casual shirts, hoodies, clean sneakers.',            female: 'comfortable trousers, casual dresses, hoodies, sneakers.',                           avoid: 'formal, heels, heavy ethnic, anything restrictive' },
+  'Casual Outing': { formality: 'casual',                          male: 'hoodies, oversized tees, joggers, casual shorts, clean sneakers.',               female: 'oversized knits, casual co-ords, casual dresses, sneakers.',                             avoid: 'formal, business-casual, festive' },
+  'Date Night':    { formality: 'smart-casual to business-casual', male: 'fitted button-downs, dark slim jeans, chinos, chelsea boots, loafers.',          female: 'midi dresses, fitted tops with tailored trousers, wrap dresses, heels or ankle boots.', avoid: 'casual tees, hoodies, sportswear, heavy ethnic' },
+  'Night Out':     { formality: 'smart-casual to party',           male: 'statement shirts, dark slim jeans, leather jackets, chelsea boots.',              female: 'bodycon or mini dresses, satin tops, sequins, heels or strappy sandals.',              avoid: 'office wear, ethnic, sportswear, hoodies' },
+  'Office':        { formality: 'business-casual to formal',       male: 'Oxford/dress shirts, structured trousers, blazers, chinos, brogues. NO jeans, tees.', female: 'blazers, tailored trousers, pencil skirts, structured blouses, midi dresses.',      avoid: 'casual, party, festive, athletic, ripped jeans' },
+  'Festive':       { formality: 'festive to casual',               male: 'kurtas, indo-western fusion jackets, embroidered shirts, mojris.',                female: 'lehengas, salwar suits, anarkalis, indo-western fusion dresses, jhumkas.',             avoid: 'plain western office wear, sportswear, loungewear' },
+  'Wedding':       { formality: 'formal to festive',               male: 'sherwanis, bandhgalas, jodhpuris, formal suits, heavily embroidered kurtas.',     female: 'sarees, lehengas, heavily embellished salwar suits, anarkalis.',                      avoid: 'casual western, sportswear, loungewear, plain tees' },
+  'Workout':       { formality: 'athletic',                        male: 'performance tees, athletic shorts, joggers, sweatpants, hoodies, training shoes.', female: 'sports bras, leggings, athletic shorts, cropped hoodies, trainers.',                 avoid: 'formal wear, leather, dress shoes, tailored trousers' },
+  'Travel':        { formality: 'casual to smart-casual',          male: 'joggers, comfortable chinos, casual shirts, hoodies, clean sneakers.',            female: 'comfortable trousers, casual dresses, hoodies, sneakers.',                           avoid: 'formal, heels, heavy ethnic, anything restrictive' },
 };
 
 // ── Per-occasion archetype-based styling system ─────────────────────────────
@@ -217,8 +217,8 @@ export const OCCASION_PROMPTS: Record<string, OccasionPrompt> = {
     },
   },
 
-  // ─── WEEKEND ───────────────────────────────────────────────────────────────
-  'Weekend': {
+  // ─── CASUAL OUTING ─────────────────────────────────────────────────────────
+  'Casual Outing': {
     goal: 'Relaxed, effortless, naturally stylish. Comfortable without trying.',
     inspirationReference: 'Sunday brunch followed by a flea market. Aimé Leon Dore. Sunday Best. Casual but quietly considered — never sloppy, never office.',
     styleDirection: ['clean casual', 'modern basics', 'easy layering', 'low effort, high taste'],
@@ -287,44 +287,58 @@ export const OCCASION_PROMPTS: Record<string, OccasionPrompt> = {
     templates: ['Hoodie & Sweats', 'Tee & Relaxed', 'Soft Layered'],
   },
 
-  // ─── VACATION ──────────────────────────────────────────────────────────────
-  'Vacation': {
-    goal: 'Resort energy. Breathable, light, sun-ready. Effortless but never sloppy.',
-    inspirationReference: 'Mallorca rooftop. Loewe Paula\'s Ibiza. Loro Piana Capri. Resort styling — NEVER winter NYC, NEVER office.',
-    styleDirection: ['breathable fabrics (linen, cotton, terry)', 'relaxed silhouettes', 'resort styling', 'light palettes'],
+  // ─── WORKOUT ───────────────────────────────────────────────────────────────
+  'Workout': {
+    goal: 'Performance-ready. Clean athletic or elevated athleisure. Functional and sharp.',
+    inspirationReference: 'Gymshark athlete. Nike x Fear of God campaign. Lululemon men\'s ABC pant. Clean, technical, never sloppy — gym-ready but styled.',
+    styleDirection: ['performance-first', 'clean athletic', 'elevated athleisure', 'functional layering'],
     archetypes: [
-      { name: 'Linen Resort',     composition: ['linen shirt (worn open OR buttoned)', 'linen shorts OR linen trousers', 'leather sandals'] },
-      { name: 'Print & Pants',    composition: ['printed resort shirt OR soft tee', 'light linen trousers OR shorts', 'sandals OR canvas slip-on'] },
-      { name: 'Soft Cotton',      composition: ['soft cotton tee', 'shorts OR light pants', 'sandals'] },
+      { name: 'Classic Athletic',    composition: ['performance tee OR fitted tank', 'athletic shorts OR slim joggers', 'athletic sneakers / trainers'] },
+      { name: 'Athleisure Layer',    composition: ['zip-up hoodie OR lightweight athletic jacket', 'fitted performance tee inside', 'slim joggers OR sweatpants', 'training sneakers'] },
+      { name: 'Elevated Athleisure', composition: ['clean hoodie OR sweatshirt', 'slim joggers OR athletic shorts', 'clean white trainers'] },
     ],
     goodExamples: [
-      'Cream open linen shirt + white tank inside + sky-blue linen shorts + tan leather sandals',
-      'Sage soft tee + cream linen trousers + canvas slip-on',
-      'Light pink printed shirt + white shorts + leather sandals',
+      'Black performance tee + black slim joggers + white athletic sneakers',
+      'Gray zip-up hoodie + white fitted tee + black athletic shorts + training shoes',
+      'Navy hoodie + black slim sweatpants + white clean trainers',
+      'Charcoal sweatshirt + olive joggers + clean white sneakers',
     ],
     badExamples: [
-      'Leather bomber + turtleneck + cargo pants — wrong everything (this is winter NYC, NOT vacation)',
-      'Suit jacket + dress shirt — way too formal',
-      'Hoodie + sweatpants — travel mode, not vacation mode',
-      'Heavy wool sweater of any kind — wrong climate',
-      'Cargo pants — too tactical / military for resort',
+      'Button-down + chinos + loafers — office wear, completely wrong for gym',
+      'Heavy leather jacket + jeans — restrictive, zero athletic function',
+      'Formal trousers + tee — formality clash, no athletic context',
+      'Chelsea boots + joggers — footwear completely mismatched',
     ],
     rules: [
-      '2–3 pieces. LIGHT fabrics only — linen, light cotton, terry, knit-cotton',
-      'NEVER: leather, suede, heavy wool, turtlenecks, bombers, suit jackets, dress shirts, cargo pants',
-      'Sandals or canvas sneakers preferred — NEVER chelsea boots or dress shoes',
-      'If wardrobe lacks proper vacation pieces, return MINIMAL 2-piece outfits (tee + shorts, or shirt + pants) with matchQuality:"closest" — DO NOT pad with heavy outerwear',
+      '2–3 pieces. Performance and comfort ABOVE all else.',
+      'ONLY athletic-formality pieces: tees, tanks, hoodies, joggers, shorts, sweatpants, zip-ups',
+      'NEVER: button-downs, tailored trousers, leather jackets, blazers, dress shoes',
+      'Fabrics: moisture-wicking, stretch, jersey, fleece — the clothing must move with the body',
+      'If wardrobe lacks athletic pieces, use the most casual items available with matchQuality:"closest"',
     ],
-    preferredColors: ['cream', 'sand', 'white', 'sky-blue', 'sage', 'soft pink', 'pale yellow', 'light olive', 'terracotta'],
-    footwear: ['leather sandals', 'canvas slip-on', 'espadrilles', 'clean white sneakers'],
-    avoid: ['leather jackets', 'wool', 'turtlenecks', 'cargos', 'dress shoes', 'boots of any kind'],
-    outfitsShouldFeel: ['effortless', 'resort', 'breezy', 'sun-ready'],
+    preferredColors: ['black', 'white', 'gray', 'navy', 'charcoal', 'olive', 'slate', 'cream'],
+    footwear: ['athletic sneakers', 'training shoes', 'running shoes', 'clean white trainers'],
+    avoid: ['leather shoes', 'dress shoes', 'formal wear', 'heavy outerwear', 'tailored pieces'],
+    outfitsShouldFeel: ['athletic', 'clean', 'functional', 'energized', 'put-together'],
     layerCount: { min: 2, max: 3 },
-    templates: ['Linen Resort', 'Print & Pants', 'Soft Cotton'],
+    templates: ['Classic Athletic', 'Athleisure Layer', 'Elevated Athleisure'],
+    female: {
+      inspirationReference: 'Lululemon women\'s campaign. Gymshark female athlete. Alo Yoga. Clean and athletic, confidently functional.',
+      archetypes: [
+        { name: 'Classic Athletic',    composition: ['sports bra OR fitted athletic tank', 'leggings OR athletic shorts', 'athletic sneakers'] },
+        { name: 'Athleisure Casual',   composition: ['cropped hoodie OR zip-up sweatshirt', 'high-waist leggings OR joggers', 'clean trainers'] },
+        { name: 'Elevated Athleisure', composition: ['matching athletic set OR co-ord (sports bra + leggings)', 'light jacket optional', 'clean trainers'] },
+      ],
+      goodExamples: [
+        'Black sports bra + black high-waist leggings + white trainers',
+        'Lilac cropped hoodie + black leggings + white clean sneakers',
+      ],
+      templates: ['Classic Athletic', 'Athleisure Casual', 'Elevated Athleisure'],
+    },
   },
 
-  // ─── FESTIVAL ──────────────────────────────────────────────────────────────
-  'Festival': {
+  // ─── FESTIVE ───────────────────────────────────────────────────────────────
+  'Festive': {
     goal: 'Celebratory and expressive. Cultural reference if wardrobe is Ethnic-leaning; else Western festival energy.',
     inspirationReference: 'Diwali rooftop / Holi morning if Ethnic. Coachella afternoon / music festival if Western. Always expressive, never plain office.',
     styleDirection: ['celebratory', 'expressive', 'rich textures', 'culturally grounded'],
@@ -414,7 +428,7 @@ export const OCCASION_PROMPTS: Record<string, OccasionPrompt> = {
 
 // Map any unknown theme to a sensible default
 export function getOccasionPrompt(theme: string): OccasionPrompt {
-  return OCCASION_PROMPTS[theme] ?? OCCASION_PROMPTS['Weekend'];
+  return OCCASION_PROMPTS[theme] ?? OCCASION_PROMPTS['Casual Outing'];
 }
 
 // ── Suggest prompt ─────────────────────────────────────────────────────────
@@ -577,7 +591,7 @@ Return ONLY raw JSON. No markdown. No prose. No code fences.
   "pairsWellWith": ["blue jeans", "khaki chinos", "cargo pants", "tailored trousers"],
   "styleNotes": "Tuck for polish, leave out for ease. The most flexible piece in any wardrobe.",
   "styleVibes": ["minimal", "clean", "relaxed", "modern"],
-  "occasionTags": ["weekend", "travel", "college", "casual-day-out", "coffee-run", "errands", "movie-night"],
+  "occasionTags": ["casual-outing", "travel", "college", "casual-day-out", "coffee-run", "errands", "movie-night"],
   "energy": ["effortless", "comfortable", "laid-back"],
   "worksBestFor": ["daytime casual looks", "airport layering", "relaxed everyday outfits", "weekend brunches"]
 }
@@ -594,12 +608,12 @@ styleVibes (4–8 entries):
 
 occasionTags (5–10 entries):
   SPECIFIC real-life scenarios this piece works for. Be granular — these are what users actually search.
-  Vocabulary includes (combine freely): weekend, travel, airport, road-trip, vacation, beach,
+  Vocabulary includes (combine freely): casual-outing, travel, airport, road-trip, beach,
     college, lecture, library, coffee-run, errands, brunch, lunch-out, dinner-out, date-night,
-    casual-date, first-date, movie-night, house-party, club, concert, festival, wedding,
+    casual-date, first-date, movie-night, house-party, club, concert, festive, wedding,
     sangeet, mehendi, reception, family-gathering, family-outing, diwali, holi, eid, christmas,
     office, work-from-office, meeting, presentation, interview, conference, networking,
-    work-from-home, lounge, sleepover, gym, run, yoga, hike, sports, picnic, garden-party,
+    work-from-home, lounge, sleepover, workout, gym, run, yoga, hike, sports, picnic, garden-party,
     rooftop, after-work-drinks, birthday, anniversary, photo-shoot
   → Be GENEROUS: if a piece can credibly serve 7 of these, list 7.
 
@@ -630,11 +644,11 @@ worksBestFor (3–6 entries, FULL PHRASES not single words):
 The SAME piece often spans many occasions. Don't be conservative.
 
 Examples of generous, correct multi-tagging:
-  • Black slim jeans → casual, weekend, date-night, dinner, college, travel, concert, night-out
+  • Black slim jeans → casual-outing, date-night, dinner, college, travel, concert, night-out
   • White Oxford shirt → office, interview, date-night, dinner, smart-casual, brunch, presentation
-  • Cream linen co-ord → vacation, beach, brunch, garden-party, festival, summer-weekend
+  • Cream linen co-ord → casual-outing, beach, brunch, garden-party, festive, travel
   • Tailored blazer → office, interview, date-night, dinner, wedding-guest, after-work-drinks
-  • Plain hoodie → lounge, weekend, college, travel, airport, errands, movie-night
+  • Plain hoodie → lounge, casual-outing, college, travel, airport, errands, movie-night
 
 EXCEPT for these strict no-go pairings (don't ever combine):
   • Ethnic (Kurta/Saree/Lehenga/Sherwani) → NEVER office/work/gym/college-daily
@@ -695,24 +709,24 @@ genderStyle: menswear | womenswear | unisex
 ━━━ OCCASION TAGGING — HARD RULES (these directly drive outfit suggestions) ━━━
 
 The "occasionTags" field MUST use these EXACT keys (these match the styling system, no synonyms):
-weekend | travel | vacation | office | date-night | night-out | festival | wedding | brunch
+casual-outing | travel | workout | office | date-night | night-out | festive | wedding | brunch
 Plus secondary tags: coffee-run | errands | lounge | gym | family-gathering | formal-event | photo-shoot | concert | beach | airport
 
 NON-NEGOTIABLE TAGGING RULES — apply religiously:
 • Button-Down / Oxford / Dress Shirt with formality "business-casual" or "formal" → MUST include "office" in occasionTags
-• Polo with formality "smart-casual" → MUST include "office" AND "weekend" in occasionTags
+• Polo with formality "smart-casual" → MUST include "office" AND "casual-outing" in occasionTags
 • Blazer / Suit Jacket → MUST include "office" AND "date-night" in occasionTags
 • Tailored Trousers / Chinos → MUST include "office" in occasionTags
 • Bomber Jacket / Leather Jacket / Suede Jacket → MUST include "date-night" AND "night-out", NEVER "office"
-• Hoodie / Sweatshirt → MUST include "travel" AND "weekend", NEVER "office" or "date-night"
-• Cargo Pants / Cargo Shorts → MUST include "travel" AND "weekend", NEVER "office"
-• Joggers / Sweatpants → "travel" + "weekend" + "gym" ONLY, NEVER "office" or "date-night"
-• Linen Shirt / Linen Trousers / Resort Print → MUST include "vacation" AND "beach", NEVER "office"
-• Sandals → "vacation" + "beach" ONLY, NEVER "office" or "date-night" or "night-out"
-• Kurta / Saree / Lehenga / Sherwani → "festival" + "wedding" + "family-gathering" ONLY, NEVER "office" or "gym"
-• Sportswear (athletic formality) → "gym" + "travel" ONLY, NEVER "office" or "wedding" or "date-night"
-• Graphic Tee / Slogan Tee → "weekend" + "travel" ONLY, NEVER "office" or "date-night"
-• Sequin / Satin / Bold-saturation pieces → "night-out" + "date-night" + (if appropriate) "festival" / "wedding"
+• Hoodie / Sweatshirt → MUST include "travel" AND "casual-outing", ALSO include "workout" if it's athletic fabric; NEVER "office" or "date-night"
+• Cargo Pants / Cargo Shorts → MUST include "travel" AND "casual-outing", NEVER "office"
+• Joggers / Sweatpants → "travel" + "casual-outing" + "workout" + "gym", NEVER "office" or "date-night"
+• Linen Shirt / Linen Trousers / Resort Print → MUST include "casual-outing" AND "beach", NEVER "office"
+• Sandals → "casual-outing" + "beach" ONLY, NEVER "office" or "date-night" or "night-out"
+• Kurta / Saree / Lehenga / Sherwani → "festive" + "wedding" + "family-gathering" ONLY, NEVER "office" or "gym"
+• Sportswear (athletic formality) → "workout" + "gym" + "travel", NEVER "office" or "wedding" or "date-night"
+• Graphic Tee / Slogan Tee → "casual-outing" + "travel" ONLY, NEVER "office" or "date-night"
+• Sequin / Satin / Bold-saturation pieces → "night-out" + "date-night" + (if appropriate) "festive" / "wedding"
 
 ━━━ OUTPUT RULES ━━━
 • Return ONLY the raw JSON object. No backticks, no prose.
@@ -761,7 +775,7 @@ Each object MUST include "imageIndex" matching its position (0-based).
   "pairsWellWith": ["blue jeans", "khaki chinos", "cargo pants", "tailored trousers"],
   "styleNotes": "Tuck for polish, leave out for ease. The most flexible piece in any wardrobe.",
   "styleVibes": ["minimal", "clean", "relaxed", "modern"],
-  "occasionTags": ["weekend", "travel", "college", "casual-day-out", "coffee-run", "errands", "movie-night"],
+  "occasionTags": ["casual-outing", "travel", "college", "casual-day-out", "coffee-run", "errands", "movie-night"],
   "energy": ["effortless", "comfortable", "laid-back"],
   "worksBestFor": ["daytime casual looks", "airport layering", "relaxed everyday outfits", "weekend brunches"]
 }]
@@ -785,7 +799,7 @@ layersWith       array of layering pieces
 pairsWellWith    array of complementary items (color-aware, occasion-aware)
 styleNotes       string | null — one stylist sentence
 styleVibes       array 4–8 entries (see vocabulary below)
-occasionTags     array 5–10 entries (see vocabulary below)
+occasionTags     array 5–10 entries (see vocabulary below — use EXACT keys: casual-outing, workout, festive, not weekend/vacation/festival)
 energy           array 3–5 entries (see vocabulary below)
 worksBestFor     array 3–6 FULL PHRASES (see examples below)
 colorUndertone   "warm" | "cool" | "neutral"
@@ -805,12 +819,12 @@ styleVibes — the mood/aesthetic the piece projects (4–8 entries):
   elevated, timeless, refined, rugged, monochrome, effortless, contemporary, classic
 
 occasionTags — specific real-life scenarios (5–10 entries, BE GENEROUS):
-  weekend, travel, airport, road-trip, vacation, beach, college, lecture, library,
+  casual-outing, travel, airport, road-trip, beach, college, lecture, library,
   coffee-run, errands, brunch, lunch-out, dinner-out, date-night, casual-date, first-date,
-  movie-night, house-party, club, concert, festival, wedding, sangeet, mehendi, reception,
+  movie-night, house-party, club, concert, festive, wedding, sangeet, mehendi, reception,
   family-gathering, family-outing, diwali, holi, eid, christmas, office, work-from-office,
   meeting, presentation, interview, conference, networking, work-from-home, lounge,
-  sleepover, gym, run, yoga, hike, sports, picnic, garden-party, rooftop,
+  sleepover, workout, gym, run, yoga, hike, sports, picnic, garden-party, rooftop,
   after-work-drinks, birthday, anniversary, photo-shoot, night-out, business-meeting,
   formal-event, black-tie, luxury-dinner, celebratory-dinner
 
@@ -827,11 +841,11 @@ worksBestFor — stylist-voice full phrases (3–6 entries):
 
 ━━━ MULTI-OCCASION RULE (non-negotiable) ━━━
 The SAME piece spans many occasions — don't be conservative.
-  • Black slim jeans → weekend, date-night, dinner, college, travel, concert, night-out, casual-date
+  • Black slim jeans → casual-outing, date-night, dinner, college, travel, concert, night-out, casual-date
   • White Oxford shirt → office, interview, date-night, dinner, brunch, presentation, smart-casual
-  • Cream linen co-ord → vacation, beach, brunch, garden-party, festival, summer-weekend
+  • Cream linen co-ord → casual-outing, beach, brunch, garden-party, festive, travel
   • Tailored blazer → office, interview, date-night, dinner, wedding-guest, after-work-drinks
-  • Plain hoodie → lounge, weekend, college, travel, airport, errands, movie-night
+  • Plain hoodie → lounge, casual-outing, college, travel, airport, errands, workout, movie-night
 NEVER combine: ethnic ↔ gym/office | sportswear ↔ office/wedding/dinner | heavy embellishment ↔ office/errands
 
 ━━━ FORMALITY RULES ━━━
@@ -869,23 +883,24 @@ Sportswear → formality="athletic" occasionTags: sports, gym, run, yoga ONLY. e
 ━━━ OCCASION TAGGING — HARD RULES (these directly drive outfit suggestions) ━━━
 
 The "occasionTags" field MUST use these EXACT keys (these match the styling system, no synonyms):
-weekend | travel | vacation | office | date-night | night-out | festival | wedding | brunch
+casual-outing | travel | workout | office | date-night | night-out | festive | wedding | brunch
 Plus secondary tags: coffee-run | errands | lounge | gym | family-gathering | formal-event | photo-shoot | concert | beach | airport
 
 NON-NEGOTIABLE TAGGING RULES — apply religiously to every piece:
 • Button-Down / Oxford / Dress Shirt with formality "business-casual" or "formal" → MUST include "office" in occasionTags
-• Polo with formality "smart-casual" → MUST include "office" AND "weekend" in occasionTags
+• Polo with formality "smart-casual" → MUST include "office" AND "casual-outing" in occasionTags
 • Blazer / Suit Jacket → MUST include "office" AND "date-night" in occasionTags
 • Tailored Trousers / Chinos → MUST include "office" in occasionTags
 • Bomber Jacket / Leather Jacket / Suede Jacket → MUST include "date-night" AND "night-out", NEVER "office"
-• Hoodie / Sweatshirt → MUST include "travel" AND "weekend", NEVER "office" or "date-night"
-• Cargo Pants / Cargo Shorts → MUST include "travel" AND "weekend", NEVER "office"
-• Joggers / Sweatpants → "travel" + "weekend" + "gym" ONLY, NEVER "office" or "date-night"
-• Linen Shirt / Linen Trousers / Resort Print → MUST include "vacation" AND "beach", NEVER "office"
-• Sandals → "vacation" + "beach" ONLY, NEVER "office" or "date-night" or "night-out"
-• Kurta / Saree / Lehenga / Sherwani → "festival" + "wedding" + "family-gathering" ONLY, NEVER "office" or "gym"
-• Graphic / Slogan Tee → "weekend" + "travel" ONLY, NEVER "office" or "date-night"
-• Sequin / Satin / Bold-saturation piece → "night-out" + "date-night" + (if appropriate) "festival" / "wedding"
+• Hoodie / Sweatshirt → MUST include "travel" AND "casual-outing"; ALSO include "workout" if athletic fabric; NEVER "office" or "date-night"
+• Cargo Pants / Cargo Shorts → MUST include "travel" AND "casual-outing", NEVER "office"
+• Joggers / Sweatpants → "travel" + "casual-outing" + "workout" + "gym", NEVER "office" or "date-night"
+• Linen Shirt / Linen Trousers / Resort Print → MUST include "casual-outing" AND "beach", NEVER "office"
+• Sandals → "casual-outing" + "beach" ONLY, NEVER "office" or "date-night" or "night-out"
+• Kurta / Saree / Lehenga / Sherwani → "festive" + "wedding" + "family-gathering" ONLY, NEVER "office" or "gym"
+• Graphic / Slogan Tee → "casual-outing" + "travel" ONLY, NEVER "office" or "date-night"
+• Sequin / Satin / Bold-saturation piece → "night-out" + "date-night" + (if appropriate) "festive" / "wedding"
+• Sportswear (athletic formality) → "workout" + "gym" + "travel", NEVER "office" or "wedding" or "date-night"
 
 ━━━ STYLING INTELLIGENCE — these 7 fields drive outfit construction (fill thoughtfully) ━━━
 colorUndertone   warm (red/yellow bias: camel/cream/olive/rust) | cool (blue/green bias: navy/mint/slate) | neutral (true black/white/charcoal)

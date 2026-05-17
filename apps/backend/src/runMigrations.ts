@@ -198,5 +198,10 @@ export async function runMigrations(): Promise<void> {
     .addColumn('created_at',      'timestamptz', c => c.defaultTo(sql`now()`))
     .execute();
 
+  // ── 011: rename occasion tags — 'weekend'→'casual-outing', 'vacation'→'workout', 'festival'→'festive'
+  await sql`UPDATE clothes SET occasion_tags = REPLACE(occasion_tags, 'weekend', 'casual-outing') WHERE occasion_tags LIKE '%weekend%'`.execute(db);
+  await sql`UPDATE clothes SET occasion_tags = REPLACE(occasion_tags, 'vacation', 'workout') WHERE occasion_tags LIKE '%vacation%'`.execute(db);
+  await sql`UPDATE clothes SET occasion_tags = REPLACE(occasion_tags, 'festival', 'festive') WHERE occasion_tags LIKE '%festival%'`.execute(db);
+
   console.log('✅ All migrations complete');
 }

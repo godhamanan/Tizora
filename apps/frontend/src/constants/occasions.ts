@@ -10,12 +10,36 @@ export interface Occasion {
 
 export const OCCASIONS: Occasion[] = [
   {
+    value: 'Office',
+    label: 'Office',
+    feel: 'clean, sharp',
+    imgMale:   '/occasions/male/office.png',
+    imgFemale: '/occasions/female/office.png',
+    from: '#08141e', to: '#1a3250',
+  },
+  {
+    value: 'Casual Outing',
+    label: 'Casual Outing',
+    feel: 'cozy, laid-back',
+    imgMale:   '/occasions/male/weekend.png',
+    imgFemale: '/occasions/female/weekend.png',
+    from: '#141008', to: '#342618',
+  },
+  {
     value: 'Date Night',
     label: 'Date night',
     feel: 'romantic, warm',
     imgMale:   '/occasions/male/date-night.png',
     imgFemale: '/occasions/female/date-night.png',
     from: '#2a0d18', to: '#5c1a2e',
+  },
+  {
+    value: 'Workout',
+    label: 'Workout',
+    feel: 'athletic, energized',
+    imgMale:   '/occasions/male/workout.png',
+    imgFemale: '/occasions/female/workout.png',
+    from: '#0d1a0a', to: '#1e3a14',
   },
   {
     value: 'Night Out',
@@ -26,16 +50,8 @@ export const OCCASIONS: Occasion[] = [
     from: '#080318', to: '#200848',
   },
   {
-    value: 'Office',
-    label: 'Office',
-    feel: 'clean, sharp',
-    imgMale:   '/occasions/male/office.png',
-    imgFemale: '/occasions/female/office.png',
-    from: '#08141e', to: '#1a3250',
-  },
-  {
-    value: 'Festival',
-    label: 'Festival',
+    value: 'Festive',
+    label: 'Festive',
     feel: 'fun, expressive',
     imgMale:   '/occasions/male/festival.png',
     imgFemale: '/occasions/female/festival.png',
@@ -50,27 +66,11 @@ export const OCCASIONS: Occasion[] = [
     from: '#181208', to: '#3e2e14',
   },
   {
-    value: 'Vacation',
-    label: 'Vacation',
-    feel: 'easy, breezy',
-    imgMale:   '/occasions/male/vacation.png',
-    imgFemale: '/occasions/female/vacation.png',
-    from: '#04101e', to: '#0c2c44',
-  },
-  {
     value: 'Travel',
     label: 'Travel',
     feel: 'comfortable, versatile',
     imgMale:   '/occasions/male/travel.png',
     imgFemale: '/occasions/female/travel.png',
     from: '#081a10', to: '#163c22',
-  },
-  {
-    value: 'Weekend',
-    label: 'Weekend',
-    feel: 'cozy, laid-back',
-    imgMale:   '/occasions/male/weekend.png',
-    imgFemale: '/occasions/female/weekend.png',
-    from: '#141008', to: '#342618',
   },
 ];

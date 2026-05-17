@@ -60,10 +60,13 @@ export default function Home() {
 
   async function buildTodayLook(bust = false) {
     if (!items?.length) return;
-    if (bust) localStorage.removeItem(LOOK_CACHE_KEY);
+    if (bust) {
+      localStorage.removeItem(LOOK_CACHE_KEY);
+      setTodayLook(null);
+    }
     setLoadingLook(true);
     try {
-      const r    = await getOutfitSuggestions('Casual');
+      const r    = await getOutfitSuggestions('Casual Outing');
       const look = r.outfits[0] ?? null;
       if (look) { cacheLook(look); setTodayLook(look); }
     } catch { /* quiet */ }
