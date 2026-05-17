@@ -36,7 +36,13 @@ app.get('/health', (_req, res) => {
   res.json({
     status: 'ok',
     app: 'tizora',
+    commit: process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) ?? 'unknown',
     google_api_key: process.env.GOOGLE_API_KEY ? '✅ set' : '❌ missing',
+    rembg: {
+      ready:        bgWorker.isReady(),
+      model:        process.env.REMBG_MODEL  ?? 'u2netp',
+      python_bin:   process.env.PYTHON_BIN   ?? '/opt/venv/bin/python3',
+    },
   });
 });
 

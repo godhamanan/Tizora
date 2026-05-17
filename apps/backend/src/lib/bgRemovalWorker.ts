@@ -33,12 +33,15 @@ class BgRemovalWorker {
     this._starting = true;
 
     const pythonBin = process.env.PYTHON_BIN ?? '/opt/venv/bin/python3';
+    console.log(`🐍 starting rembg worker  python=${pythonBin}  script=${WORKER_PATH}`);
 
     let proc: ChildProcess;
     try {
-      proc = spawn(pythonBin, [WORKER_PATH], {
+      // -u forces unbuffered stdin/stdout — critical for our IPC contract.
+      // Without it, Python may buffer lines and Node thinks the worker is hung.
+      proc = spawn(pythonBin, ['-u', WORKER_PATH], {
         stdio: ['pipe', 'pipe', 'pipe'],
-        env:   { ...process.env },
+        env:   { ...process.env, PYTHONUNBUFFERED: '1' },
       });
     } catch (err) {
       this._starting = false;
@@ -47,6 +50,13 @@ class BgRemovalWorker {
       this._readyWaiters = [];
       return;
     }
+
+    proc.on('error', (err: Error) => {
+      console.warn('⚠️  rembg worker spawn error:', err.message);
+      this._starting = false;
+      this._readyWaiters.forEach(fn => fn());
+      this._readyWaiters = [];
+    });
 
     this.proc = proc;
 
