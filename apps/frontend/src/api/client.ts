@@ -103,8 +103,10 @@ export async function getOutfitSuggestions(
   weather?: string,
   anchorItemId?: number
 ): Promise<{ outfits: import('../types/index').OutfitSuggestion[] }> {
+  // Backend has a 45s per-attempt Gemini timeout + 1 retry → max ~95s wall time.
+  // Frontend gives a buffer past that so legitimate slow responses succeed.
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 45_000); // 45s timeout
+  const timer = setTimeout(() => controller.abort(), 100_000);
   try {
     const res = await fetch(`${BASE}/suggest`, {
       method:  'POST',

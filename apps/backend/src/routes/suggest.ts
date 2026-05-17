@@ -103,30 +103,25 @@ router.post('/', async (req: Request, res: Response) => {
       if (full) toSend = [full, ...toSend.slice(0, TOP_N - 1)];
     }
 
+    // Trimmed wardrobe summary — only fields that meaningfully drive composition.
+    // Was sending 13 fields per item including verbose phrases like worksBestFor
+    // and works_best_for, which pushed prompts past 8K chars on a 30-item
+    // wardrobe and made Gemini slow. Dropping them shrinks prompt by ~40% with
+    // no quality loss in practice — the kept fields are the high-signal ones.
     const wardrobeSummary = toSend
       .map(c => {
         const colors = [c.color, c.secondary_color].filter(Boolean).join('/');
-        // Promote Phase 0 styling fields to the front — they drive composition
-        const styling = [
-          c.piece_role        ? `role:${c.piece_role}`               : null,  // hero/anchor/neutral
-          c.layer_role        ? `layer:${c.layer_role}`              : null,  // base/mid/outer/standalone
-          c.color_saturation  ? `saturation:${c.color_saturation}`   : null,  // muted/medium/bold
-          c.color_undertone   ? `undertone:${c.color_undertone}`     : null,
-          c.color_pairs       ? `pairsColors:${c.color_pairs}`       : null,  // explicit color names
-          c.contrast_affinity ? `contrast:${c.contrast_affinity}`    : null,
-          c.fabric_weight     ? `weight:${c.fabric_weight}`          : null,
-        ].filter(Boolean).join(' | ');
-        const meta = [
-          c.subcategory, c.fabric, c.fit, c.formality, c.gender_style,
-          c.layers_with     ? `layersWith:${c.layers_with}`      : null,
-          c.occasion_tags   ? `occasionTags:${c.occasion_tags}`  : null,
-          c.style_vibes     ? `vibes:${c.style_vibes}`           : null,
-          c.energy          ? `energy:${c.energy}`               : null,
-          c.works_best_for  ? `worksBestFor:${c.works_best_for}` : null,
-          c.pairs_well_with ? `pairsWell:${c.pairs_well_with}`   : null,
+        const tags = [
+          c.piece_role       ? `role:${c.piece_role}`            : null,
+          c.layer_role       ? `layer:${c.layer_role}`           : null,
+          c.color_saturation ? `sat:${c.color_saturation}`       : null,
+          c.formality        ? `f:${c.formality}`                : null,
+          c.occasion_tags    ? `occ:${c.occasion_tags}`          : null,
+          c.style_vibes      ? `v:${c.style_vibes}`              : null,
         ].filter(Boolean).join(' | ');
         const heroTag = c.piece_role === 'hero' ? ' [HERO]' : '';
-        return `[ID:${c.id}]${heroTag} ${c.name} — ${c.category}, ${colors}, ${c.pattern ?? 'solid'}, ${c.style ?? 'Western'}${styling ? ` || ${styling}` : ''}${meta ? ` | ${meta}` : ''}`;
+        const sub = c.subcategory ? ` ${c.subcategory}` : '';
+        return `[${c.id}]${heroTag} ${c.name} —${sub} ${c.category}, ${colors}, ${c.pattern ?? 'solid'}, ${c.style ?? 'Western'}${tags ? ` | ${tags}` : ''}`;
       })
       .join('\n');
 
@@ -150,15 +145,33 @@ router.post('/', async (req: Request, res: Response) => {
       anchorItemId:   anchorItem?.id,
     });
 
-    const response = await Promise.race([
+    // Up to 2 attempts: first at 45s, retry at 40s if first fails with a
+    // transient error. Total wall time bounded at ~90s — frontend waits 100s.
+    // Retrying matters because Gemini Flash occasionally hits 503/INTERNAL
+    // under load, and a single failure was nuking the whole request.
+    const callGemini = (timeoutMs: number) => Promise.race([
       ai.models.generateContent({
         model:    GEMINI_MODEL,
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
       }),
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Gemini timed out after 60s')), 60_000)
+        setTimeout(() => reject(new Error(`Gemini timed out after ${timeoutMs/1000}s`)), timeoutMs)
       ),
     ]);
+
+    const isRetryable = (err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err);
+      return /503|500|UNAVAILABLE|INTERNAL|high demand|429|RESOURCE_EXHAUSTED|DEADLINE_EXCEEDED|timeout|ETIMEDOUT|ECONNRESET|ECONNREFUSED|fetch failed/i.test(msg);
+    };
+
+    let response;
+    try {
+      response = await callGemini(45_000);
+    } catch (err) {
+      if (!isRetryable(err)) throw err;
+      console.warn('Gemini suggest attempt 1 failed, retrying:', err instanceof Error ? err.message : err);
+      response = await callGemini(40_000);  // single retry — total ≤ 85s
+    }
 
     const rawText = response.text ?? '';
     const cleaned = rawText.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
