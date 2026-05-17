@@ -123,10 +123,11 @@ export const OCCASION_PROMPTS: Record<string, OccasionPrompt> = {
     inspirationReference: 'A24 protagonist on a Friday night. Pattinson on a coffee run before a wine bar. Tonal, slightly textured, slightly cinematic. NOT corporate, NOT loud-streetwear.',
     styleDirection: ['elevated casual', 'intentional layering', 'dark palettes', 'one focal piece', 'subtle statement energy'],
     archetypes: [
-      { name: 'Open Shirt Layer', composition: ['button-down shirt worn UNBUTTONED OPEN (formality casual / smart-casual)', 'fitted clean tee inside', 'dark jeans OR dark trousers', 'clean white sneakers OR chelsea boots'] },
-      { name: 'Bomber & Tee',     composition: ['bomber OR suede / leather jacket', 'fitted clean tee', 'dark jeans OR dark trousers', 'chelsea boots OR clean sneakers'] },
-      { name: 'Elevated Knit',    composition: ['fine knit crewneck OR henley OR cashmere sweater', 'dark trousers OR dark jeans', 'chelsea boots OR loafers'] },
-      { name: 'Monochrome Minimal',composition: ['tonal dark top (no logos, no graphics)', 'dark slim OR relaxed trousers', 'sleek footwear'] },
+      { name: 'Open Shirt Layer', composition: ['button-down shirt worn UNBUTTONED OPEN (the focal piece)', 'fitted tee OR any clean-looking inner top inside', 'any available jeans/trousers (dark preferred)', 'clean white sneakers OR chelsea boots'] },
+      { name: 'Bomber & Tee',     composition: ['bomber OR suede / leather jacket', 'fitted clean tee OR any clean inner top', 'any available jeans/trousers', 'chelsea boots OR clean sneakers'] },
+      { name: 'Elevated Knit',    composition: ['fine knit crewneck OR henley OR any collared shirt as top', 'any available trousers OR jeans', 'chelsea boots OR loafers'] },
+      { name: 'Monochrome Minimal',composition: ['any dark-toned top', 'any available trousers or jeans (dark preferred)', 'sleek footwear'] },
+      { name: 'Layer What You Have', composition: ['any shirt worn UNBUTTONED OPEN as the focal outer layer', 'any other top as the inner (tee, shirt, or fitted top)', 'any available bottom'] },
     ],
     goodExamples: [
       'Cream button-down (worn open) + black fitted tee + dark navy jeans + clean white sneakers',
@@ -142,11 +143,13 @@ export const OCCASION_PROMPTS: Record<string, OccasionPrompt> = {
       'TWO layers as statement (e.g. open shirt + bomber over it) — kills cohesion, pick ONE focal piece',
     ],
     rules: [
-      '2–3 pieces (don\'t over-layer)',
-      'ONE focal point ONLY: the open shirt OR the bomber OR the knit. NEVER stack two statement pieces.',
-      'Dark bottoms STRONGLY preferred (black, navy, charcoal jeans or trousers)',
-      'AVOID corporate energy — no chinos paired with button-down + loafers',
-      'AVOID hoodies and graphic tees as the outer/visible layer',
+      'EVERY outfit MUST have ≥1 top AND ≥1 bottom — a 1-piece outfit is NEVER acceptable.',
+      '2–3 pieces (don\'t over-layer). If wardrobe is limited, build 2-piece combos.',
+      'ONE focal point: the open shirt (worn unbuttoned) OR bomber OR knit. Never two statement pieces.',
+      'Bottoms: dark jeans/trousers preferred. If unavailable, use ANY available bottom — an imperfect bottom beats no bottom.',
+      'Open shirt layer: button-down WORN OPEN over any clean inner top — tee is ideal, but any fitted shirt works as the inner if no tee exists.',
+      'AVOID corporate energy — button-down + chinos + loafers = office, not date.',
+      'AVOID hoodies and graphic tees as the outer/visible layer.',
     ],
     preferredColors: ['black', 'charcoal', 'navy', 'deep brown', 'olive', 'cream as accent', 'dusty earth tones'],
     footwear: ['clean white leather sneakers', 'chelsea boots', 'loafers', 'minimal black boots'],
@@ -154,7 +157,7 @@ export const OCCASION_PROMPTS: Record<string, OccasionPrompt> = {
     silhouetteGuidance: ['balance structured (jacket, shirt) + relaxed (tee, fitted jeans)', 'never bulky', 'never sloppy'],
     outfitsShouldFeel: ['confident', 'attractive', 'cinematic', 'considered', 'effortless'],
     layerCount: { min: 2, max: 3 },
-    templates: ['Open Shirt Layer', 'Bomber & Tee', 'Elevated Knit', 'Monochrome Minimal'],
+    templates: ['Open Shirt Layer', 'Bomber & Tee', 'Elevated Knit', 'Monochrome Minimal', 'Layer What You Have'],
     female: {
       inspirationReference: 'Hailey Bieber off-duty dinner. Mary-Kate Olsen at a wine bar. Tonal, textured, one elevated piece.',
       archetypes: [
@@ -526,7 +529,8 @@ For EACH outfit, internally answer in order:
 
 ━━━ STRICT REQUIREMENTS ━━━
 
-🚨 LAYER COUNT IS A HARD CAP: ${occ.layerCount.min}–${occ.layerCount.max} non-footwear pieces. NEVER exceed ${occ.layerCount.max}. If wardrobe lacks ideal pieces, return MINIMUM (${occ.layerCount.min}) with matchQuality:"closest" — do NOT pad with extras.
+🚨 MINIMUM OUTFIT RULE: Every outfit MUST contain ≥1 top (or dress) AND ≥1 bottom. A 1-piece outfit is NEVER acceptable — if no ideal bottom exists, use ANY available bottom and set matchQuality:"closest".
+🚨 LAYER CAP: Max ${occ.layerCount.max} non-footwear pieces. Target ${occ.layerCount.min}–${occ.layerCount.max}. If wardrobe is limited, prioritise complete 2-piece combos (focal top + any bottom) over leaving slots empty.
 
 1. Each of the 3 outfits MUST use a DIFFERENT archetype: ${templateList}
 2. The HERO PIECE must be different across all 3 outfits (no reusing the same anchor with swapped layers).

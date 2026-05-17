@@ -194,6 +194,8 @@ router.post('/', async (req: Request, res: Response) => {
 
     // ── Validation pass: enforce diversity + layer count + Office tonal rule ─
     parsed.outfits = validateOutfits(parsed.outfits, theme, toSend);
+    // ── Pad thin outfits: never return a single-piece "look" ─────────────────
+    parsed.outfits = padThinOutfits(parsed.outfits, toSend);
 
     const allIds = [...new Set(
       parsed.outfits.flatMap(o => o.pieceIds ?? [])
@@ -280,6 +282,11 @@ function scoreItem(item: ScorableItem, theme: string, themeKey: string, allowed:
   // 3. pieceRole bias — hero pieces shine in most occasions, but NOT Office
   if (item.piece_role === 'hero' && theme !== 'Office') score += 3;
   if (item.piece_role === 'anchor') score += 2;
+
+  // 3b. Structural baseline — every outfit needs a bottom + shoes.
+  // Ensures they stay in top 30 even when formality/tag scores are low.
+  if (item.category === 'Bottoms' && item.formality !== 'athletic') score += 2;
+  if (item.category === 'Shoes') score += 1;
 
   // 4. Layer-role bonus for layered occasions
   if ((theme === 'Date Night' || theme === 'Night Out') && item.layer_role === 'outer') score += 2;
@@ -369,7 +376,6 @@ function enforceOutfitRules(
   let hasOuter = false;
   let hasStandalone = false;
   let patternedCount = 0;
-  const seenLayerRoles = new Set<string>();
 
   for (const p of ranked) {
     if (keep.length >= maxLayers) break;
@@ -397,14 +403,13 @@ function enforceOutfitRules(
       hasOuter = true;
     }
 
-    // Dedupe by layer_role (so we don't have 2 base layers like tee + tee)
-    if (p.layer_role && p.layer_role !== 'standalone' && seenLayerRoles.has(p.layer_role)) continue;
-
     // Pattern count cap (at most 1 patterned piece per outfit)
     if (isPatterned(p) && patternedCount >= 1) continue;
     if (isPatterned(p)) patternedCount++;
 
-    if (p.layer_role) seenLayerRoles.add(p.layer_role);
+    // NOTE: layer_role dedup intentionally removed — "Open Shirt Layer" and
+    // similar archetypes legitimately have two 'base'-role pieces (shirt + tee).
+    // The maxLayers cap and 1-bottom/1-outer rules are sufficient constraints.
     keep.push(p);
   }
 
@@ -493,6 +498,41 @@ function validateOutfits(outfits: AiOutfit[], theme: string, wardrobe: WardrobeI
         ? 'closest'
         : (outfit.matchQuality ?? 'exact'),
     };
+  });
+}
+
+// ── Pad thin outfits ───────────────────────────────────────────────────────
+// Gemini sometimes returns a 1-piece "closest match" when the wardrobe lacks
+// ideal pieces. We force every outfit to have at least 1 top + 1 bottom by
+// pulling in the best-available missing category from the scored wardrobe.
+function padThinOutfits(outfits: AiOutfit[], wardrobe: WardrobeItem[]): AiOutfit[] {
+  return outfits.map(outfit => {
+    const existing = new Set<number>(outfit.pieceIds ?? []);
+    const pieces   = (outfit.pieceIds ?? [])
+      .map(id => wardrobe.find(w => w.id === id))
+      .filter(Boolean) as WardrobeItem[];
+
+    const nonFw = pieces.filter(p => p.category !== 'Shoes' && p.category !== 'Accessories');
+    if (nonFw.length >= 2) return outfit; // Already has enough pieces — leave it alone
+
+    const newIds   = [...(outfit.pieceIds   ?? [])];
+    const newNames = [...(outfit.pieces     ?? [])];
+
+    const hasTop    = pieces.some(p => ['Tops','Dress','Kurta','Saree','Lehenga','Sherwani','Outerwear'].includes(p.category));
+    const hasBottom = pieces.some(p => p.category === 'Bottoms' || p.layer_role === 'standalone');
+
+    if (!hasBottom) {
+      const bottom = wardrobe.find(w => !existing.has(w.id) && w.category === 'Bottoms');
+      if (bottom) { newIds.push(bottom.id); newNames.push(bottom.name); existing.add(bottom.id); }
+    }
+    if (!hasTop) {
+      const top = wardrobe.find(w => !existing.has(w.id) && w.category === 'Tops');
+      if (top) { newIds.push(top.id); newNames.push(top.name); existing.add(top.id); }
+    }
+
+    return newIds.length > (outfit.pieceIds ?? []).length
+      ? { ...outfit, pieceIds: newIds, pieces: newNames, matchQuality: 'closest' as const }
+      : outfit;
   });
 }
 
