@@ -87,15 +87,26 @@ async function processJobAsync(jobId: string, files: ScanFile[]) {
     );
 
     // ── Parallel pipeline ────────────────────────────────────────────────
-    // Gemini classify:  ~15-25s  network-bound
-    // rembg removal:    ~20-30s  CPU-bound in Python worker
-    // Running in parallel means total ≈ max(gemini, rembg) instead of sum.
-    // If rembg worker is offline the second branch resolves to null immediately.
+    // Gemini classify:  ~15-25s  network-bound  (uses 900px image for quality)
+    // rembg removal:    ~5-10s   CPU-bound      (uses 512px image — 4x less RAM)
+    //
+    // We send a downsized copy to rembg to keep peak memory low on Railway —
+    // the model output is composited onto an 800x1000 card, so 512px of input
+    // detail is plenty. Reduces OOM-kill risk significantly.
+    let rembgInputs: string[] | null = null;
+    if (bgWorker.isReady()) {
+      rembgInputs = await Promise.all(
+        resized.map(async r => (await sharp(Buffer.from(r.data, 'base64'))
+          .resize({ width: 512, height: 512, fit: 'inside', withoutEnlargement: true })
+          .jpeg({ quality: 80 })
+          .toBuffer()
+        ).toString('base64'))
+      );
+    }
+
     const [classifications, bgResults] = await Promise.all([
       classifyBatch(resized),
-      bgWorker.isReady()
-        ? bgRemoveBatch(resized.map(r => r.data))
-        : Promise.resolve(null),
+      rembgInputs ? bgRemoveBatch(rembgInputs) : Promise.resolve(null),
     ]);
 
     const successItems: object[] = [];

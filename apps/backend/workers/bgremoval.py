@@ -17,15 +17,28 @@ import traceback
 import os
 
 def main() -> None:
-    model_name = os.environ.get("REMBG_MODEL", "isnet-general-use")
+    model_name = os.environ.get("REMBG_MODEL", "u2netp")
 
     try:
         from rembg import remove, new_session  # type: ignore
+        import onnxruntime as ort  # type: ignore
     except ImportError as exc:
         print(json.dumps({"ready": False, "error": f"rembg not installed: {exc}"}), flush=True)
         sys.exit(1)
 
+    # Memory-conscious ONNX session options.
+    # Railway containers have limited RAM (~512MB-1GB). Aggressive parallelism
+    # and memory pattern caching can push us into OOM-kill territory.
+    sess_opts = ort.SessionOptions()
+    sess_opts.intra_op_num_threads = 1   # 1 thread per op (less peak RAM)
+    sess_opts.inter_op_num_threads = 1   # 1 thread between ops
+    sess_opts.enable_mem_pattern   = False  # disable mem-pattern caching
+    sess_opts.enable_cpu_mem_arena = False  # disable arena allocator
+
     try:
+        session = new_session(model_name, sess_opts=sess_opts)
+    except TypeError:
+        # Older rembg versions don't accept sess_opts kwarg — fall back gracefully
         session = new_session(model_name)
     except Exception as exc:
         print(json.dumps({"ready": False, "error": f"model load failed: {exc}"}), flush=True)
