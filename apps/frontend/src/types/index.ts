@@ -109,6 +109,14 @@ export interface CatalogItem {
   season: string | null;
   style_vibes: string | null;
   occasion_tags: string | null;
+  // Phase 0 styling intelligence — flows through to saved wardrobe items
+  color_undertone:   string | null;
+  color_saturation:  string | null;
+  piece_role:        string | null;
+  layer_role:        string | null;
+  fabric_weight:     string | null;
+  color_pairs:       string | null;
+  contrast_affinity: string | null;
   image_url: string;
 }
 

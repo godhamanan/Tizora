@@ -98,6 +98,13 @@ export interface CatalogTable {
   season: string | null;
   style_vibes: string | null;
   occasion_tags: string | null;
+  color_undertone:   string | null;
+  color_saturation:  string | null;
+  piece_role:        string | null;
+  layer_role:        string | null;
+  fabric_weight:     string | null;
+  color_pairs:       string | null;
+  contrast_affinity: string | null;
   image_url: string;
   created_at: Generated<Date>;
 }

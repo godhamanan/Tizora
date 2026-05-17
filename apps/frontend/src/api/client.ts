@@ -55,6 +55,14 @@ export async function saveClothingItem(item: {
   occasion_tags?: string | null;
   energy?: string | null;
   works_best_for?: string | null;
+  // Phase 0 styling intelligence
+  color_undertone?: string | null;
+  color_saturation?: string | null;
+  piece_role?: string | null;
+  layer_role?: string | null;
+  fabric_weight?: string | null;
+  color_pairs?: string | null;
+  contrast_affinity?: string | null;
   image_base64?: string | null;
   image_url?: string | null;
 }): Promise<ClothingItem> {

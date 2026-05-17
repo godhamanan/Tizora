@@ -319,8 +319,8 @@ export default function Upload() {
                 <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
               </svg>
               <div>
-                <div className="h3">Browse catalog</div>
-                <div className="body" style={{ marginTop: 4 }}>Pick from pre-loaded pieces and add to your wardrobe.</div>
+                <div className="h3">Add essentials</div>
+                <div className="body" style={{ marginTop: 4 }}>Start with curated essentials. Pick what you own.</div>
               </div>
               <span className="upload-path-arrow">→</span>
             </button>
