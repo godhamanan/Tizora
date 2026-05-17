@@ -123,11 +123,10 @@ export const OCCASION_PROMPTS: Record<string, OccasionPrompt> = {
     inspirationReference: 'A24 protagonist on a Friday night. Pattinson on a coffee run before a wine bar. Tonal, slightly textured, slightly cinematic. NOT corporate, NOT loud-streetwear.',
     styleDirection: ['elevated casual', 'intentional layering', 'dark palettes', 'one focal piece', 'subtle statement energy'],
     archetypes: [
-      { name: 'Open Shirt Layer', composition: ['button-down shirt worn UNBUTTONED OPEN (the focal piece)', 'fitted tee OR any clean-looking inner top inside', 'any available jeans/trousers (dark preferred)', 'clean white sneakers OR chelsea boots'] },
-      { name: 'Bomber & Tee',     composition: ['bomber OR suede / leather jacket', 'fitted clean tee OR any clean inner top', 'any available jeans/trousers', 'chelsea boots OR clean sneakers'] },
-      { name: 'Elevated Knit',    composition: ['fine knit crewneck OR henley OR any collared shirt as top', 'any available trousers OR jeans', 'chelsea boots OR loafers'] },
-      { name: 'Monochrome Minimal',composition: ['any dark-toned top', 'any available trousers or jeans (dark preferred)', 'sleek footwear'] },
-      { name: 'Layer What You Have', composition: ['any shirt worn UNBUTTONED OPEN as the focal outer layer', 'any other top as the inner (tee, shirt, or fitted top)', 'any available bottom'] },
+      { name: 'Open Shirt Layer', composition: ['button-down/overshirt worn UNBUTTONED OPEN (focal piece)', 'tee OR tank OR henley as inner ONLY — never another button-down', 'dark jeans OR any available trousers', 'clean white sneakers OR chelsea boots'] },
+      { name: 'Bomber & Tee',     composition: ['bomber OR jacket (Outerwear)', 'fitted clean tee OR henley inside', 'any available jeans/trousers', 'chelsea boots OR clean sneakers'] },
+      { name: 'Elevated Knit',    composition: ['fine knit crewneck OR sweater OR collared shirt (worn closed, tucked)', 'any available trousers OR jeans', 'chelsea boots OR loafers'] },
+      { name: 'Monochrome Minimal',composition: ['any clean dark-toned top (tee, knit, or slim shirt)', 'any available dark trousers or jeans', 'sleek footwear'] },
     ],
     goodExamples: [
       'Cream button-down (worn open) + black fitted tee + dark navy jeans + clean white sneakers',
@@ -140,7 +139,8 @@ export const OCCASION_PROMPTS: Record<string, OccasionPrompt> = {
       'Hoodie + shorts — no intention, no effort',
       'Graphic tee + cargos — wrong tone, too casual-streetwear',
       'Polo + dad jeans — corporate-weekend energy, not romantic',
-      'TWO layers as statement (e.g. open shirt + bomber over it) — kills cohesion, pick ONE focal piece',
+      'TWO button-down shirts worn together — not a real layer, just two collars',
+      'Open shirt with ANOTHER open shirt as inner — inner must be a tee/tank/henley only',
     ],
     rules: [
       'EVERY outfit MUST have ≥1 top AND ≥1 bottom — a 1-piece outfit is NEVER acceptable.',
@@ -157,7 +157,7 @@ export const OCCASION_PROMPTS: Record<string, OccasionPrompt> = {
     silhouetteGuidance: ['balance structured (jacket, shirt) + relaxed (tee, fitted jeans)', 'never bulky', 'never sloppy'],
     outfitsShouldFeel: ['confident', 'attractive', 'cinematic', 'considered', 'effortless'],
     layerCount: { min: 2, max: 3 },
-    templates: ['Open Shirt Layer', 'Bomber & Tee', 'Elevated Knit', 'Monochrome Minimal', 'Layer What You Have'],
+    templates: ['Open Shirt Layer', 'Bomber & Tee', 'Elevated Knit', 'Monochrome Minimal'],
     female: {
       inspirationReference: 'Hailey Bieber off-duty dinner. Mary-Kate Olsen at a wine bar. Tonal, textured, one elevated piece.',
       archetypes: [

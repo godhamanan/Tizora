@@ -407,9 +407,24 @@ function enforceOutfitRules(
     if (isPatterned(p) && patternedCount >= 1) continue;
     if (isPatterned(p)) patternedCount++;
 
-    // NOTE: layer_role dedup intentionally removed — "Open Shirt Layer" and
-    // similar archetypes legitimately have two 'base'-role pieces (shirt + tee).
-    // The maxLayers cap and 1-bottom/1-outer rules are sufficient constraints.
+    // Layer-role dedup: max 1 piece per role, with ONE exception —
+    // a button-down/shirt worn OPEN over a tee/tank/henley is a real styling
+    // move. Two shirts or two tees together is not.
+    if (p.layer_role && p.layer_role !== 'standalone') {
+      const sameRole = keep.filter(k => k.layer_role === p.layer_role);
+      if (sameRole.length > 0) {
+        if (p.layer_role === 'base') {
+          const isShirt = (x: WardrobeItem) => /button-down|oxford|shirt/i.test(x.subcategory ?? '');
+          const isTee   = (x: WardrobeItem) => /t-shirt|tee|tank|henley|knit/i.test(x.subcategory ?? '');
+          const existing = sameRole[0];
+          const validCombo = (isShirt(existing) && isTee(p)) || (isTee(existing) && isShirt(p));
+          if (!validCombo) continue; // two shirts or two tees → skip
+        } else {
+          continue; // mid/outer/etc — still max 1 per role
+        }
+      }
+    }
+
     keep.push(p);
   }
 
