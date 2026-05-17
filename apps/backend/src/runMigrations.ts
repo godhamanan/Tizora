@@ -176,32 +176,15 @@ export async function runMigrations(): Promise<void> {
     await dropColumnIfExists('clothes', col);
   }
 
-  // ── 009: catalog ─────────────────────────────────────────────────────────
-  await db.schema.createTable('catalog').ifNotExists()
-    .addColumn('id',              'serial',      c => c.primaryKey())
-    .addColumn('name',            'text',        c => c.notNull())
-    .addColumn('brand',           'text')
-    .addColumn('category',        'text',        c => c.notNull())
-    .addColumn('subcategory',     'text')
-    .addColumn('color',           'text',        c => c.notNull())
-    .addColumn('secondary_color', 'text')
-    .addColumn('pattern',         'text')
-    .addColumn('fabric',          'text')
-    .addColumn('fit',             'text')
-    .addColumn('formality',       'text')
-    .addColumn('style',           'text')
-    .addColumn('gender_style',    'text')
-    .addColumn('season',          'text')
-    .addColumn('style_vibes',     'text')
-    .addColumn('occasion_tags',   'text')
-    .addColumn('image_url',       'text',        c => c.notNull())
-    .addColumn('created_at',      'timestamptz', c => c.defaultTo(sql`now()`))
-    .execute();
+  // ── 009: catalog — removed, table dropped in 013 ─────────────────────────
 
   // ── 011: rename occasion tags — 'weekend'→'casual-outing', 'vacation'→'workout', 'festival'→'festive'
   await sql`UPDATE clothes SET occasion_tags = REPLACE(occasion_tags, 'weekend', 'casual-outing') WHERE occasion_tags LIKE '%weekend%'`.execute(db);
   await sql`UPDATE clothes SET occasion_tags = REPLACE(occasion_tags, 'vacation', 'workout') WHERE occasion_tags LIKE '%vacation%'`.execute(db);
   await sql`UPDATE clothes SET occasion_tags = REPLACE(occasion_tags, 'festival', 'festive') WHERE occasion_tags LIKE '%festival%'`.execute(db);
+
+  // ── 013: drop catalog table (feature removed, will be reimplemented later) ─
+  await sql`DROP TABLE IF EXISTS catalog CASCADE`.execute(db);
 
   console.log('✅ All migrations complete');
 }

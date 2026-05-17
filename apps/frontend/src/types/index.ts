@@ -92,25 +92,6 @@ export interface OutfitSuggestion {
   matchQuality?: 'exact' | 'closest';
 }
 
-export interface CatalogItem {
-  id: number;
-  name: string;
-  brand: string | null;
-  category: string;
-  subcategory: string | null;
-  color: string;
-  secondary_color: string | null;
-  pattern: string | null;
-  fabric: string | null;
-  fit: string | null;
-  formality: string | null;
-  style: string | null;
-  gender_style: string | null;
-  season: string | null;
-  style_vibes: string | null;
-  occasion_tags: string | null;
-  image_url: string;
-}
 
 export interface SuggestResponse {
   outfits: OutfitSuggestion[];

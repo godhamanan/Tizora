@@ -11,7 +11,6 @@ import scanRouter       from './routes/scan.js';
 import scanBatchRouter  from './routes/scanBatch.js';
 import suggestRouter    from './routes/suggest.js';
 import profileRouter    from './routes/profile.js';
-import catalogRouter    from './routes/catalog.js';
 
 dotenv.config();
 
@@ -45,7 +44,6 @@ app.use('/scan/batch', requireAuth, scanBatchRouter);  // more specific first
 app.use('/scan',       requireAuth, scanRouter);
 app.use('/suggest',    requireAuth, suggestRouter);
 app.use('/profile',    requireAuth, profileRouter);
-app.use('/catalog',    requireAuth, catalogRouter);
 
 // ── Start ──────────────────────────────────────────────────────────────────
 async function startServer() {

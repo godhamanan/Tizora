@@ -1,4 +1,4 @@
-import type { ClothingItem, ScanResponse, CatalogItem } from '../types/index';
+import type { ClothingItem, ScanResponse } from '../types/index';
 
 const BASE = '/api';
 
@@ -88,14 +88,6 @@ export async function deleteClothingItem(id: number): Promise<void> {
 export async function clearWardrobe(): Promise<{ deleted: number }> {
   const res = await fetch(`${BASE}/clothes`, { method: 'DELETE', credentials: 'include' });
   return handleResponse<{ deleted: number }>(res);
-}
-
-export async function getCatalog(category?: string, gender?: 'men' | 'women'): Promise<CatalogItem[]> {
-  const url = new URL(`${BASE}/catalog`, window.location.origin);
-  if (category && category !== 'All') url.searchParams.set('category', category);
-  if (gender) url.searchParams.set('gender', gender);
-  const res = await fetch(url.toString(), { credentials: 'include' });
-  return handleResponse<CatalogItem[]>(res);
 }
 
 export async function getOutfitSuggestions(

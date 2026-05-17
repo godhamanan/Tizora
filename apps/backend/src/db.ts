@@ -81,34 +81,12 @@ export interface ScanJobFilesTable {
   processed: Generated<boolean>;
 }
 
-export interface CatalogTable {
-  id: Generated<number>;
-  name: string;
-  brand: string | null;
-  category: string;
-  subcategory: string | null;
-  color: string;
-  secondary_color: string | null;
-  pattern: string | null;
-  fabric: string | null;
-  fit: string | null;
-  formality: string | null;
-  style: string | null;
-  gender_style: string | null;
-  season: string | null;
-  style_vibes: string | null;
-  occasion_tags: string | null;
-  image_url: string;
-  created_at: Generated<Date>;
-}
-
 export interface Database {
   clothes: ClothesTable;
   outfit_history: OutfitHistoryTable;
   profiles: ProfilesTable;
   scan_jobs: ScanJobsTable;
   scan_job_files: ScanJobFilesTable;
-  catalog: CatalogTable;
 }
 
 // ── Kysely instance ────────────────────────────────────────────────────────

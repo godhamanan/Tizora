@@ -313,17 +313,6 @@ export default function Upload() {
               </div>
               <span className="upload-path-arrow">→</span>
             </button>
-            <button className="upload-path" onClick={() => navigate('/catalog')}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
-                <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
-              </svg>
-              <div>
-                <div className="h3">Browse catalog</div>
-                <div className="body" style={{ marginTop: 4 }}>Pick from pre-loaded pieces and add to your wardrobe.</div>
-              </div>
-              <span className="upload-path-arrow">→</span>
-            </button>
           </div>
         </div>
       )}

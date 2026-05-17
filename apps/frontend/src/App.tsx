@@ -11,7 +11,6 @@ import Upload     from './pages/Upload';
 import Wardrobe   from './pages/Wardrobe';
 import ItemDetail from './pages/ItemDetail';
 import Suggest    from './pages/Suggest';
-import Catalog    from './pages/Catalog';
 
 // ─── Nav icons ────────────────────────────────────────────────────────────────
 
@@ -129,7 +128,6 @@ function AppInner() {
               <Route path="/wardrobe/:id" element={<ItemDetail />} />
               <Route path="/upload"       element={<Upload />} />
               <Route path="/suggest"      element={<Suggest />} />
-              <Route path="/catalog"      element={<Catalog />} />
               <Route path="*"             element={<Navigate to="/" replace />} />
             </Routes>
             <BottomNav />
