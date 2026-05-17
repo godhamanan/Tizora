@@ -37,7 +37,9 @@ router.post('/', async (req: Request, res: Response) => {
 
     const userId = (req as any).userId as string;
 
-    // Guard before running Gemini — check wardrobe exists
+    // ── DB queries — parallelised ─────────────────────────────────────────
+    // count check runs first (cheap guard); then profile + wardrobe + optional
+    // anchor fire together so we're not waiting on sequential round-trips.
     const countRow = await db
       .selectFrom('clothes')
       .select(db.fn.countAll<number>().as('n'))
@@ -48,35 +50,28 @@ router.post('/', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'No clothes in wardrobe yet' });
     }
 
-    let anchorItem: { id: number; name: string; category: string; color: string; style: string | null; formality: string | null } | null = null;
-    if (anchorItemId) {
-      anchorItem = await db
-        .selectFrom('clothes')
-        .select(['id', 'name', 'category', 'color', 'style', 'formality'])
-        .where('id', '=', anchorItemId)
-        .executeTakeFirst() ?? null;
-    }
-
-    const profile = await db
-      .selectFrom('profiles')
-      .select(['gender'])
-      .where('user_id', '=', userId)
-      .executeTakeFirst();
-
-    const wardrobe = await db
-      .selectFrom('clothes')
-      .select([
-        'id', 'name', 'category', 'subcategory',
-        'color', 'secondary_color', 'pattern', 'fabric', 'fit',
-        'formality', 'gender_style', 'season', 'style',
-        'pairs_well_with', 'layers_with',
-        'style_vibes', 'occasion_tags', 'energy', 'works_best_for',
-        // Phase 0 styling intelligence
-        'color_undertone', 'color_saturation', 'piece_role',
-        'layer_role', 'fabric_weight', 'color_pairs', 'contrast_affinity',
-      ])
-      .where('user_id', '=', userId)
-      .execute();
+    // Only fetch columns actually used by scoreItem() + wardrobeSummary().
+    // Previously fetching 15+ columns including fabric, fit, layers_with,
+    // works_best_for, color_pairs etc. that were never read after the prompt
+    // trim — wasted bandwidth and slowed the query on large wardrobes.
+    const [profile, wardrobe, anchorItem] = await Promise.all([
+      db.selectFrom('profiles').select(['gender']).where('user_id', '=', userId).executeTakeFirst(),
+      db.selectFrom('clothes')
+        .select([
+          'id', 'name', 'category', 'subcategory',
+          'color', 'secondary_color', 'pattern', 'style',
+          'formality', 'occasion_tags', 'style_vibes', 'energy',
+          'piece_role', 'layer_role', 'color_saturation',
+        ])
+        .where('user_id', '=', userId)
+        .execute(),
+      anchorItemId
+        ? db.selectFrom('clothes')
+            .select(['id', 'name', 'category', 'color', 'style', 'formality'])
+            .where('id', '=', anchorItemId)
+            .executeTakeFirst().then(r => r ?? null)
+        : Promise.resolve(null),
+    ]);
 
     const allowed  = OCCASION_FORMALITY_MAP[theme] ?? [];
     const themeKey = theme.toLowerCase().replace(/\s+/g, '-');
@@ -153,6 +148,16 @@ router.post('/', async (req: Request, res: Response) => {
       ai.models.generateContent({
         model:    GEMINI_MODEL,
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        config: {
+          // Disable internal "thinking" — adds 5-20s on Gemini 2.5 Flash
+          // for a task that needs no multi-step reasoning.
+          thinkingConfig:  { thinkingBudget: 0 },
+          // Cap output to 3 outfits × ~450 tokens = ~1350 tokens needed.
+          // Hard cap at 1800 prevents runaway generation when Gemini adds
+          // prose outside the JSON.
+          maxOutputTokens: 1800,
+          temperature:     0.8,   // enough variety across 3 outfits
+        },
       }),
       new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error(`Gemini timed out after ${timeoutMs/1000}s`)), timeoutMs)
