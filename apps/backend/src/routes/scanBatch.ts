@@ -5,8 +5,6 @@ import { sql } from 'kysely';
 import sharp from 'sharp';
 import { db } from '../db.js';
 import { classifyBatch } from '../lib/scanUtils.js';
-import { bgWorker } from '../lib/bgRemovalWorker.js';
-import { composeCard, composeCardFallback, checkExtractionQuality } from '../lib/imageCompose.js';
 
 const router = express.Router();
 const MAX_BATCH = 5;
@@ -16,50 +14,12 @@ const upload = multer({
   limits:  { fileSize: 10 * 1024 * 1024, files: MAX_BATCH },
 });
 
-type ScanFile    = { filename: string; mime: string; data: string };
-type BgResult    = { ok: true; data: string } | { ok: false };
+type ScanFile = { filename: string; mime: string; data: string };
 
-// ── Background removal batch ───────────────────────────────────────────────
-// Processes images sequentially in the Python worker (CPU-bound, single process).
-// Never throws — returns {ok:false} for any image that fails or times out.
-async function bgRemoveBatch(imagesBase64: string[]): Promise<BgResult[]> {
-  const results: BgResult[] = [];
-  for (const b64 of imagesBase64) {
-    try {
-      const data = await bgWorker.remove(b64);
-      results.push({ ok: true, data });
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.warn(`   ⚠️  rembg skipped: ${msg.slice(0, 80)}`);
-      results.push({ ok: false });
-    }
-  }
-  return results;
-}
-
-// ── Card compositing ───────────────────────────────────────────────────────
-// Produces a consistent 800×1000 card.
-// Prefers the rembg-cleaned version; falls back gracefully to the original.
-async function buildCard(
-  bgResult: BgResult,
-  originalBase64: string
-): Promise<string> {
-  if (bgResult.ok) {
-    try {
-      const quality = await checkExtractionQuality(bgResult.data);
-      if (quality === 'good') {
-        const buf = await composeCard(bgResult.data);
-        return `data:image/jpeg;base64,${buf.toString('base64')}`;
-      }
-    } catch { /* fall through to fallback */ }
-  }
-  const buf = await composeCardFallback(originalBase64);
-  return `data:image/jpeg;base64,${buf.toString('base64')}`;
-}
-
-// ── Core async job ─────────────────────────────────────────────────────────
-// Single Gemini call for classification AND rembg removal run in parallel.
-// Gemini is network-bound; rembg is CPU-bound — they don't block each other.
+// ── Single Gemini call for all images using BATCH_CLASSIFY_PROMPT.
+//    Resize all images first (CPU, parallel), then one API call returns
+//    all classifications. imageIndex in each result ensures correct mapping
+//    even if Gemini returns results out of order. ─────────────────────────
 async function processJobAsync(jobId: string, files: ScanFile[]) {
   try {
     if (!files.length) {
@@ -67,12 +27,12 @@ async function processJobAsync(jobId: string, files: ScanFile[]) {
       return;
     }
 
-    // Delete stale jobs (>2h old) to prevent DB bloat
+    // Delete stale jobs (>2h old) — prevents DB bloat from abandoned scans
     await db.deleteFrom('scan_jobs')
       .where('created_at', '<', new Date(Date.now() - 2 * 60 * 60 * 1000))
       .execute();
 
-    // Resize all images for Gemini (900px, parallel sharp calls)
+    // Resize all images in parallel (CPU-bound, no API calls)
     const resized = await Promise.all(
       files.map(async f => ({
         filename: f.filename,
@@ -86,29 +46,10 @@ async function processJobAsync(jobId: string, files: ScanFile[]) {
       }))
     );
 
-    // ── Parallel pipeline ────────────────────────────────────────────────
-    // Gemini classify:  ~15-25s  network-bound  (uses 900px image for quality)
-    // rembg removal:    ~5-10s   CPU-bound      (uses 512px image — 4x less RAM)
-    //
-    // We send a downsized copy to rembg to keep peak memory low on Railway —
-    // the model output is composited onto an 800x1000 card, so 512px of input
-    // detail is plenty. Reduces OOM-kill risk significantly.
-    let rembgInputs: string[] | null = null;
-    if (bgWorker.isReady()) {
-      rembgInputs = await Promise.all(
-        resized.map(async r => (await sharp(Buffer.from(r.data, 'base64'))
-          .resize({ width: 512, height: 512, fit: 'inside', withoutEnlargement: true })
-          .jpeg({ quality: 80 })
-          .toBuffer()
-        ).toString('base64'))
-      );
-    }
+    // Single Gemini call for all images
+    const classifications = await classifyBatch(resized);
 
-    const [classifications, bgResults] = await Promise.all([
-      classifyBatch(resized),
-      rembgInputs ? bgRemoveBatch(rembgInputs) : Promise.resolve(null),
-    ]);
-
+    // Build results array and counts in memory — single DB write at the end
     const successItems: object[] = [];
     let failed = 0;
 
@@ -119,16 +60,11 @@ async function processJobAsync(jobId: string, files: ScanFile[]) {
         console.warn(`   ⚠️  [${resized[i].filename}] skipped — not clothing`);
         continue;
       }
-
-      const bgResult: BgResult = bgResults?.[i] ?? { ok: false };
-      const image = await buildCard(bgResult, resized[i].data);
-
-      successItems.push({ ...classification, image });
-      const tag = bgResult.ok ? '🖼️ ' : '📷';
-      console.log(`   ✅ ${tag} [${resized[i].filename}] ${classification.label}`);
+      successItems.push({ ...classification, image: `data:image/jpeg;base64,${resized[i].data}` });
+      console.log(`   ✅ [${resized[i].filename}] ${classification.label}`);
     }
 
-    // Single DB write — same protocol as before
+    // 1 write: all results + final counts + status
     await sql`
       UPDATE scan_jobs
       SET results   = ${JSON.stringify(successItems)}::text,
@@ -137,15 +73,12 @@ async function processJobAsync(jobId: string, files: ScanFile[]) {
           status    = 'complete'
       WHERE id = ${jobId}
     `.execute(db);
-
-    console.log(`✅ Job ${jobId} — ${successItems.length} classified, ${failed} skipped`);
+    console.log(`✅ Job ${jobId} complete — ${successItems.length} classified, ${failed} skipped`);
   } catch (err) {
     console.error(`❌ Job ${jobId} failed:`, err);
     await db.updateTable('scan_jobs').set({ status: 'failed' }).where('id', '=', jobId).execute();
   }
 }
-
-// ── Routes ─────────────────────────────────────────────────────────────────
 
 // POST /scan/batch
 router.post('/', upload.array('images', MAX_BATCH), async (req: Request, res: Response) => {
@@ -156,7 +89,7 @@ router.post('/', upload.array('images', MAX_BATCH), async (req: Request, res: Re
     if (!files?.length)           return res.status(400).json({ error: 'No image files provided' });
     if (files.length > MAX_BATCH) return res.status(400).json({ error: `Max ${MAX_BATCH} photos at a time` });
 
-    const jobId    = randomUUID();
+    const jobId = randomUUID();
     const memFiles: ScanFile[] = files.map(f => ({
       filename: f.originalname,
       mime:     f.mimetype,
@@ -164,6 +97,8 @@ router.post('/', upload.array('images', MAX_BATCH), async (req: Request, res: Re
     }));
 
     await db.insertInto('scan_jobs').values({ id: jobId, user_id: userId, total: files.length }).execute();
+
+    // Respond immediately
     res.json({ jobId, total: files.length });
 
     setImmediate(() => processJobAsync(jobId, memFiles).catch(err => console.error('Uncaught processJobAsync:', err)));

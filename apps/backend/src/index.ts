@@ -4,7 +4,6 @@ import dotenv from 'dotenv';
 import { toNodeHandler } from 'better-auth/node';
 import { testConnection } from './db.js';
 import { runMigrations } from './runMigrations.js';
-import { bgWorker } from './lib/bgRemovalWorker.js';
 import { auth } from './auth.js';
 import { requireAuth } from './middleware/requireAuth.js';
 import clothesRouter    from './routes/clothes.js';
@@ -36,13 +35,7 @@ app.get('/health', (_req, res) => {
   res.json({
     status: 'ok',
     app: 'tizora',
-    commit: process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) ?? 'unknown',
     google_api_key: process.env.GOOGLE_API_KEY ? '✅ set' : '❌ missing',
-    rembg: {
-      ready:        bgWorker.isReady(),
-      model:        process.env.REMBG_MODEL  ?? 'u2netp',
-      python_bin:   process.env.PYTHON_BIN   ?? '/opt/venv/bin/python3',
-    },
   });
 });
 
@@ -65,11 +58,6 @@ async function startServer() {
   app.listen(PORT, () => {
     console.log(`🚀 Tizora backend running on http://localhost:${PORT}`);
   });
-
-  // Start the rembg worker in the background — non-blocking.
-  // The server is already accepting requests; bg removal degrades gracefully
-  // to the original-image fallback until the Python model is loaded (~10s).
-  bgWorker.start().catch(err => console.warn('rembg worker startup error:', err));
 }
 
 startServer();
