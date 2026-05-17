@@ -6,6 +6,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
+    "seed:catalog": "tsx scripts/seed-catalog-images.ts",
     "trigger:dev": "node scripts/trigger-dev.mjs",
     "trigger:deploy": "npx trigger.dev@latest deploy",
     "migrate": "tsx src/migrations/001_create_clothes_table.ts && tsx src/migrations/002_add_metadata_columns.ts && tsx src/migrations/003_add_image_url.ts && tsx src/migrations/003_add_rich_metadata.ts && tsx src/migrations/004_auth_and_profiles.ts && tsx src/migrations/005_scan_jobs.ts && tsx src/migrations/006_add_rich_metadata.ts && tsx src/migrations/007_drop_legacy_columns.ts && tsx src/migrations/008_fix_image_base64_nullable.ts && tsx src/migrations/009_add_catalog.ts"

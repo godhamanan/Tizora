@@ -32,3 +32,17 @@ export async function uploadImage(buffer: Buffer, mimeType: string, userId: stri
   );
   return `${process.env.R2_PUBLIC_URL}/${key}`;
 }
+
+// Upload to a deterministic key (used for catalog assets shared across all users)
+export async function uploadBuffer(buffer: Buffer, key: string, contentType = 'image/jpeg'): Promise<string> {
+  if (!client) throw new Error('R2 storage is not enabled (USE_CLOUD_STORAGE != true)');
+  await client.send(
+    new PutObjectCommand({
+      Bucket: process.env.R2_BUCKET_NAME!,
+      Key: key,
+      Body: buffer,
+      ContentType: contentType,
+    })
+  );
+  return `${process.env.R2_PUBLIC_URL}/${key}`;
+}
