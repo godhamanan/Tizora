@@ -49,28 +49,21 @@ export default function Catalog() {
     for (const item of toAdd) {
       try {
         await saveClothingItem({
-          name:              item.name,
-          category:          item.category,
-          subcategory:       item.subcategory,
-          color:             item.color,
-          secondary_color:   item.secondary_color,
-          pattern:           item.pattern,
-          fabric:            item.fabric,
-          fit:               item.fit,
-          formality:         item.formality,
-          style:             item.style,
-          gender_style:      item.gender_style,
-          season:            item.season,
-          style_vibes:       item.style_vibes,
-          occasion_tags:     item.occasion_tags,
-          color_undertone:   item.color_undertone,
-          color_saturation:  item.color_saturation,
-          piece_role:        item.piece_role,
-          layer_role:        item.layer_role,
-          fabric_weight:     item.fabric_weight,
-          color_pairs:       item.color_pairs,
-          contrast_affinity: item.contrast_affinity,
-          image_url:         item.image_url,
+          name:            item.name,
+          category:        item.category,
+          subcategory:     item.subcategory,
+          color:           item.color,
+          secondary_color: item.secondary_color,
+          pattern:         item.pattern,
+          fabric:          item.fabric,
+          fit:             item.fit,
+          formality:       item.formality,
+          style:           item.style,
+          gender_style:    item.gender_style,
+          season:          item.season,
+          style_vibes:     item.style_vibes,
+          occasion_tags:   item.occasion_tags,
+          image_url:       item.image_url,
         });
         count++;
       } catch { /* skip failures */ }
@@ -89,7 +82,7 @@ export default function Catalog() {
           <p className="lead" style={{ marginTop: 'var(--s-5)' }}>They're in your wardrobe now.</p>
           <div style={{ marginTop: 'var(--s-10)', display: 'flex', flexDirection: 'column', gap: 'var(--s-3)' }}>
             <button className="pill pill-primary pill-full" onClick={() => navigate('/wardrobe')}>See my wardrobe →</button>
-            <button className="pill pill-ghost pill-full" onClick={() => { setDone(false); setSelected(new Set()); }}>Add more pieces</button>
+            <button className="pill pill-ghost pill-full" onClick={() => { setDone(false); setSelected(new Set()); }}>Browse more</button>
           </div>
         </div>
       </div>
@@ -102,8 +95,8 @@ export default function Catalog() {
       <div className="catalog-head">
         <button className="catalog-back" onClick={() => navigate(-1)}>←</button>
         <div>
-          <div className="eyebrow">— Essentials</div>
-          <h1 className="display catalog-title">Your wardrobe,<br/><em>started.</em></h1>
+          <div className="eyebrow">— Catalog</div>
+          <h1 className="display catalog-title">Browse &<br/><em>pick pieces.</em></h1>
         </div>
       </div>
 
@@ -140,8 +133,8 @@ export default function Catalog() {
       {/* Empty */}
       {!loading && filtered.length === 0 && (
         <div style={{ padding: 'var(--s-12) var(--s-6)', textAlign: 'center' }}>
-          <p className="lead" style={{ color: 'var(--ink-3)' }}>No essentials yet.</p>
-          <p className="meta" style={{ marginTop: 'var(--s-3)', color: 'var(--ink-4)' }}>Upload your own photos to build your wardrobe.</p>
+          <p className="lead" style={{ color: 'var(--ink-3)' }}>No catalog items yet.</p>
+          <p className="meta" style={{ marginTop: 'var(--s-3)', color: 'var(--ink-4)' }}>Add items via the admin script.</p>
         </div>
       )}
 
