@@ -1,12 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { getOutfitSuggestions, getClothingItem } from '../api/client';
+import { getOutfitSuggestions, getClothingItem, submitOutfitFeedback } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import type { ClothingItem, OutfitSuggestion, PieceImage } from '../types/index';
 import { OCCASIONS } from '../constants/occasions';
 import { occasionImg } from '../constants/userPrefs';
 import { sortPieces } from '../constants/outfitOrder';
 import './Suggest.css';
+
+// Min horizontal distance for a swipe to count as next/prev intent.
+// Below this we treat the gesture as accidental drift.
+const SWIPE_THRESHOLD = 50;
 
 type Step = 'occasion' | 'looks';
 
@@ -59,6 +63,66 @@ export default function Suggest() {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, [step]);
+
+  // ── Carousel navigation: swipe + keyboard + arrow buttons ────────────────
+  const touchStartX = useRef<number | null>(null);
+  const touchEndX   = useRef<number | null>(null);
+
+  const goPrev = () => setActiveIndex(i => Math.max(0, i - 1));
+  const goNext = () => setActiveIndex(i => Math.min(outfits.length - 1, i + 1));
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.targetTouches[0].clientX;
+    touchEndX.current = null;
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.targetTouches[0].clientX;
+  };
+  const onTouchEnd = () => {
+    if (touchStartX.current === null || touchEndX.current === null) return;
+    const dx = touchStartX.current - touchEndX.current;
+    if (dx >  SWIPE_THRESHOLD) goNext();
+    if (dx < -SWIPE_THRESHOLD) goPrev();
+    touchStartX.current = null;
+    touchEndX.current = null;
+  };
+
+  useEffect(() => {
+    if (step !== 'looks' || outfits.length <= 1) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === 'ArrowLeft')  goPrev();
+      if (e.key === 'ArrowRight') goNext();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, outfits.length]);
+
+  // ── Reinforcement: per-outfit thumbs feedback ────────────────────────────
+  // Tracks which outfits the user has already voted on (this session) and
+  // pulses the matching button. Feedback is fire-and-forget — failures are
+  // logged but don't block UX.
+  const [voted, setVoted] = useState<Record<number, 'up' | 'down'>>({});
+
+  async function sendFeedback(outfit: OutfitSuggestion, vote: 'up' | 'down', idx: number) {
+    if (!occasion) return;
+    setVoted(prev => ({ ...prev, [idx]: vote }));
+    try {
+      await submitOutfitFeedback({
+        theme:    occasion,
+        pieceIds: outfit.pieceIds ?? [],
+        feedback: vote,
+      });
+    } catch (err) {
+      console.warn('feedback save failed:', err);
+    }
+    // After a vote, advance to next outfit so the user keeps moving forward.
+    // Small delay so the user sees their selection register.
+    setTimeout(() => {
+      setActiveIndex(i => Math.min(outfits.length - 1, i + 1));
+    }, 320);
+  }
 
   async function fetchOutfitsFor(occ: string, anchorId?: number) {
     setLoading(true);
@@ -182,43 +246,146 @@ export default function Suggest() {
           )}
 
           {!loading && !error && outfits.length > 0 && (
-            <>
-              <div className="eyebrow">— Look {activeIndex + 1} of {outfits.length}</div>
-              <h1 className="display suggest-look-title">{outfits[activeIndex].name}</h1>
-              <p className="lead suggest-look-trend">
-                {outfits[activeIndex].trendContext} — {outfits[activeIndex].mood?.toLowerCase()}
-              </p>
-              {outfits[activeIndex].matchQuality === 'closest' && (
-                <p className="meta" style={{ color: 'var(--ink-4)', marginBottom: 'var(--s-2)' }}>
-                  Closest match from your wardrobe
-                </p>
+            <div
+              className="suggest-carousel"
+              onTouchStart={onTouchStart}
+              onTouchMove={onTouchMove}
+              onTouchEnd={onTouchEnd}
+            >
+              {/* Floating chevron arrows — always reachable, fixed to viewport edges */}
+              {outfits.length > 1 && (
+                <>
+                  <button
+                    className="suggest-arrow suggest-arrow-prev"
+                    onClick={goPrev}
+                    disabled={activeIndex === 0}
+                    aria-label="Previous look"
+                  >
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="15 18 9 12 15 6" />
+                    </svg>
+                  </button>
+                  <button
+                    className="suggest-arrow suggest-arrow-next"
+                    onClick={goNext}
+                    disabled={activeIndex === outfits.length - 1}
+                    aria-label="Next look"
+                  >
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                  </button>
+                </>
               )}
-              <OutfitBoard images={outfits[activeIndex].pieceImages ?? []} pieces={outfits[activeIndex].pieces} />
-              <div className="suggest-pieces">
-                {outfits[activeIndex].pieces.map((p, i) => (
-                  <div key={i} className="suggest-piece">
-                    <span className="suggest-piece-dot" />
-                    <span className="italic-serif">{p}</span>
-                  </div>
-                ))}
-              </div>
-              {outfits[activeIndex].tip && (
-                <div className="suggest-tip">
-                  <div className="eyebrow" style={{ color: 'var(--accent)', marginBottom: 8 }}>— A note on why</div>
-                  <p className="italic-serif body">"{outfits[activeIndex].tip}"</p>
+
+              {/* Slide content — keyed so each outfit gets a fresh enter animation */}
+              <div key={activeIndex} className="suggest-slide">
+                <div className="suggest-look-header">
+                  <div className="eyebrow">— Look {activeIndex + 1} of {outfits.length}</div>
+                  {outfits.length > 1 && (
+                    <div className="suggest-progress" role="tablist" aria-label="Outfit looks">
+                      {outfits.map((_, i) => (
+                        <button
+                          key={i}
+                          role="tab"
+                          aria-selected={i === activeIndex}
+                          aria-label={`Look ${i + 1}`}
+                          className={`suggest-progress-seg ${i === activeIndex ? 'is-active' : ''} ${i < activeIndex ? 'is-past' : ''}`}
+                          onClick={() => setActiveIndex(i)}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-              <div className="suggest-nav">
-                {outfits.map((_, i) => (
-                  <button key={i} className={`suggest-nav-dot ${i === activeIndex ? 'is-active' : ''}`} onClick={() => setActiveIndex(i)} aria-label={`Look ${i + 1}`} />
-                ))}
-              </div>
-              {activeIndex < outfits.length - 1 && (
-                <p className="meta italic-serif suggest-nav-hint" onClick={() => setActiveIndex(activeIndex + 1)}>
-                  {outfits.length - activeIndex - 1} more {outfits.length - activeIndex - 1 === 1 ? 'look' : 'looks'} to see →
+
+                <h1 className="display suggest-look-title">{outfits[activeIndex].name}</h1>
+                <p className="lead suggest-look-trend">
+                  {outfits[activeIndex].trendContext} — {outfits[activeIndex].mood?.toLowerCase()}
                 </p>
-              )}
-            </>
+                {outfits[activeIndex].matchQuality === 'closest' && (
+                  <p className="meta" style={{ color: 'var(--ink-4)', marginBottom: 'var(--s-2)' }}>
+                    Closest match from your wardrobe
+                  </p>
+                )}
+                <OutfitBoard images={outfits[activeIndex].pieceImages ?? []} pieces={outfits[activeIndex].pieces} />
+                <div className="suggest-pieces">
+                  {outfits[activeIndex].pieces.map((p, i) => (
+                    <div key={i} className="suggest-piece">
+                      <span className="suggest-piece-dot" />
+                      <span className="italic-serif">{p}</span>
+                    </div>
+                  ))}
+                </div>
+                {outfits[activeIndex].tip && (
+                  <div className="suggest-tip">
+                    <div className="eyebrow" style={{ color: 'var(--accent)', marginBottom: 8 }}>— A note on why</div>
+                    <p className="italic-serif body">"{outfits[activeIndex].tip}"</p>
+                  </div>
+                )}
+
+                {/* Thumbs feedback — trains the recommender per user, per theme */}
+                <div className="suggest-feedback">
+                  <div className="eyebrow suggest-feedback-eyebrow">— What do you think</div>
+                  <div className="suggest-feedback-row">
+                    <button
+                      className={`suggest-feedback-btn suggest-feedback-up ${voted[activeIndex] === 'up' ? 'is-voted' : ''}`}
+                      onClick={() => sendFeedback(outfits[activeIndex], 'up', activeIndex)}
+                      disabled={!!voted[activeIndex]}
+                      aria-label="I like this outfit"
+                    >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M7 22V11M2 13v7a2 2 0 0 0 2 2h13.5a2 2 0 0 0 2-1.7l1.4-9A2 2 0 0 0 19 9h-6.3l1-4.7A1.5 1.5 0 0 0 12 2.5L7 11" />
+                      </svg>
+                      <span>Love it</span>
+                    </button>
+                    <button
+                      className={`suggest-feedback-btn suggest-feedback-down ${voted[activeIndex] === 'down' ? 'is-voted' : ''}`}
+                      onClick={() => sendFeedback(outfits[activeIndex], 'down', activeIndex)}
+                      disabled={!!voted[activeIndex]}
+                      aria-label="Not for me"
+                    >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M17 2v11M22 11V4a2 2 0 0 0-2-2H6.5a2 2 0 0 0-2 1.7L3.1 12.7A2 2 0 0 0 5 15h6.3l-1 4.7A1.5 1.5 0 0 0 12 21.5L17 13" />
+                      </svg>
+                      <span>Not for me</span>
+                    </button>
+                  </div>
+                  {voted[activeIndex] && (
+                    <p className="meta suggest-feedback-thanks italic-serif">
+                      {voted[activeIndex] === 'up' ? 'Noted — we\'ll lean into this.' : 'Got it — we\'ll steer away.'}
+                    </p>
+                  )}
+                </div>
+
+                {/* Navigation pills — descriptive, large tap targets */}
+                {outfits.length > 1 && (
+                  <div className="suggest-nav-pills">
+                    {activeIndex > 0 && (
+                      <button className="suggest-nav-pill suggest-nav-pill-prev" onClick={goPrev}>
+                        <span className="suggest-nav-pill-arrow">←</span>
+                        <span className="suggest-nav-pill-stack">
+                          <span className="suggest-nav-pill-eyebrow">Previous</span>
+                          <span className="suggest-nav-pill-name italic-serif">{outfits[activeIndex - 1].name}</span>
+                        </span>
+                      </button>
+                    )}
+                    {activeIndex < outfits.length - 1 && (
+                      <button className="suggest-nav-pill suggest-nav-pill-next" onClick={goNext}>
+                        <span className="suggest-nav-pill-stack">
+                          <span className="suggest-nav-pill-eyebrow">Next look</span>
+                          <span className="suggest-nav-pill-name italic-serif">{outfits[activeIndex + 1].name}</span>
+                        </span>
+                        <span className="suggest-nav-pill-arrow">→</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                <p className="meta suggest-nav-help">
+                  Swipe, tap the arrows, or use ← / → keys
+                </p>
+              </div>
+            </div>
           )}
         </div>
       )}

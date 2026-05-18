@@ -252,29 +252,187 @@
 }
 
 /* ───── Look navigator ───── */
-.suggest-nav {
-  display: flex;
-  justify-content: center;
-  gap: var(--s-3);
-  margin-top: var(--s-10);
+/* ═══════════════════════════════════════════════════════════════
+   CAROUSEL NAVIGATION — swipe + arrows + progress + named pills
+   Multi-modal: works with thumb (swipe), tap (arrows/pills), keyboard.
+   ═══════════════════════════════════════════════════════════════ */
+
+.suggest-carousel {
+  position: relative;
+  touch-action: pan-y;     /* lets vertical scroll work; captures horizontal */
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-.suggest-nav-dot {
-  width: 36px;
-  height: 1.5px;
-  background: var(--border-2);
+.suggest-slide {
+  animation: suggest-slide-in 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes suggest-slide-in {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* Floating chevron arrows — fixed at viewport edges so always reachable */
+.suggest-arrow {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06);
+  color: var(--ink, #1a1a1a);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 40;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.18s var(--ease), background 0.18s var(--ease), opacity 0.18s var(--ease);
+}
+.suggest-arrow-prev { left: var(--s-3); }
+.suggest-arrow-next { right: var(--s-3); }
+.suggest-arrow:active:not(:disabled) {
+  transform: translateY(-50%) scale(0.92);
+  background: var(--bg-deep, #f4f1ec);
+}
+.suggest-arrow:hover:not(:disabled) { background: var(--bg-deep, #f4f1ec); }
+.suggest-arrow:disabled { opacity: 0; pointer-events: none; }
+
+/* Progress segments — replaces the old 36×1.5px hairline dots */
+.suggest-look-header { margin-bottom: var(--s-4); }
+.suggest-progress {
+  display: flex;
+  gap: 6px;
+  margin-top: var(--s-2);
+}
+.suggest-progress-seg {
+  flex: 1;
+  height: 3px;
+  background: var(--border, #e5e0d8);
   border: 0;
   padding: 0;
+  border-radius: 2px;
   cursor: pointer;
-  transition: background var(--d-base) var(--ease);
+  transition: background 0.25s var(--ease), transform 0.18s var(--ease);
 }
-.suggest-nav-dot.is-active { background: var(--ink); }
+.suggest-progress-seg:active { transform: scaleY(1.6); }
+.suggest-progress-seg.is-past   { background: var(--ink-3, #8b8678); }
+.suggest-progress-seg.is-active { background: var(--ink, #1a1a1a); }
 
-.suggest-nav-hint {
+/* ── Thumbs feedback — the reinforcement signal ─────────────────── */
+.suggest-feedback {
+  margin-top: var(--s-6);
+  padding: var(--s-4) 0 var(--s-2);
+  border-top: 1px solid var(--border);
+}
+.suggest-feedback-eyebrow {
+  margin-bottom: var(--s-3);
+  color: var(--accent);
+}
+.suggest-feedback-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-2);
+}
+.suggest-feedback-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  min-height: 52px;
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--bg-card, #ffffff);
+  color: var(--ink, #1a1a1a);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.18s var(--ease);
+}
+.suggest-feedback-btn:active:not(:disabled) { transform: scale(0.97); }
+.suggest-feedback-btn:hover:not(:disabled) { border-color: var(--ink-3, #8b8678); }
+.suggest-feedback-btn:disabled { cursor: default; }
+.suggest-feedback-up.is-voted {
+  background: #e9f6ec;
+  border-color: #4f8b5a;
+  color: #2d6b3a;
+}
+.suggest-feedback-down.is-voted {
+  background: #f7eded;
+  border-color: #a55757;
+  color: #8a3939;
+}
+.suggest-feedback-btn svg { flex-shrink: 0; }
+.suggest-feedback-thanks {
+  text-align: center;
+  margin-top: var(--s-3);
+  color: var(--ink-4, #a6a094);
+}
+
+/* ── Named navigation pills — big, descriptive tap targets ──────── */
+.suggest-nav-pills {
+  display: flex;
+  gap: var(--s-2);
+  margin-top: var(--s-6);
+}
+.suggest-nav-pill {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  min-height: 56px;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition: transform 0.18s var(--ease), border-color 0.18s var(--ease);
+  text-align: left;
+}
+.suggest-nav-pill:active { transform: scale(0.98); }
+.suggest-nav-pill:hover  { border-color: var(--ink-3, #8b8678); }
+.suggest-nav-pill-prev   { justify-content: flex-start; }
+.suggest-nav-pill-next   { justify-content: flex-end; text-align: right; }
+.suggest-nav-pill-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.suggest-nav-pill-eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-4, #a6a094);
+}
+.suggest-nav-pill-name {
+  font-size: 15px;
+  color: var(--ink, #1a1a1a);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.suggest-nav-pill-arrow {
+  font-size: 18px;
+  color: var(--ink-3, #8b8678);
+  flex-shrink: 0;
+}
+
+.suggest-nav-help {
   text-align: center;
   margin-top: var(--s-4);
-  cursor: pointer;
-  color: var(--accent);
+  color: var(--ink-4, #a6a094);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+@media (min-width: 768px) {
+  .suggest-arrow-prev { left: var(--s-6); }
+  .suggest-arrow-next { right: var(--s-6); }
+  .suggest-arrow { width: 48px; height: 48px; }
 }
 
 /* ───── Loading ───── */

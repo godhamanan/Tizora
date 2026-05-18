@@ -103,11 +103,42 @@ router.post('/', async (req: Request, res: Response) => {
     const allowed  = OCCASION_FORMALITY_MAP[theme] ?? [];
     const themeKey = theme.toLowerCase().replace(/\s+/g, '-');
 
+    // ── Reinforcement signal: load user's thumbs feedback for this theme.
+    // Each up/down on an outfit casts a +1/-1 vote on every piece in it.
+    // Aggregated by piece_id, this becomes a per-user, per-theme preference
+    // signal that biases the scoring filter and the prompt context.
+    // Also: track exact combos that were thumbs-down'd so we never repeat them.
+    const feedbackRows = await db.selectFrom('outfit_feedback')
+      .select(['piece_ids', 'feedback', 'piece_ids_hash'])
+      .where('user_id', '=', userId)
+      .where('theme', '=', theme)
+      .orderBy('created_at', 'desc')
+      .limit(100) // cap to last 100 — recent feedback matters more
+      .execute();
+
+    const pieceFeedbackScore = new Map<number, number>();
+    const dislikedCombos     = new Set<string>();
+    for (const r of feedbackRows) {
+      const ids: number[] = JSON.parse(r.piece_ids);
+      const delta = r.feedback === 'up' ? 1 : -1;
+      for (const id of ids) pieceFeedbackScore.set(id, (pieceFeedbackScore.get(id) ?? 0) + delta);
+      if (r.feedback === 'down') dislikedCombos.add(r.piece_ids_hash);
+    }
+    if (feedbackRows.length > 0) {
+      console.log(`👍👎 feedback signal for user=${userId} theme=${theme}: ${feedbackRows.length} records, ${dislikedCombos.size} disliked combos`);
+    }
+
     // Score-based ranking: always send top N most-relevant items, never the
     // entire wardrobe. Cuts noise + tokens dramatically vs the old loose OR.
+    // Per-piece feedback signal is layered ON TOP of the occasion-fit score.
     const TOP_N = 30;
     const scored = wardrobe
-      .map(item => ({ item, score: scoreItem(item, theme, themeKey, allowed) }))
+      .map(item => {
+        const base = scoreItem(item, theme, themeKey, allowed);
+        // Cap feedback contribution at ±5 so a single piece can't dominate.
+        const fb   = Math.max(-5, Math.min(5, pieceFeedbackScore.get(item.id) ?? 0));
+        return { item, score: base + fb };
+      })
       .sort((a, b) => b.score - a.score);
 
     // Drop items with strongly negative score (actively wrong for this occasion)
@@ -238,6 +269,24 @@ router.post('/', async (req: Request, res: Response) => {
 
     if (!parsed.outfits?.length) {
       parsed = { outfits: buildFallback(toSend, theme, anchorItem) };
+    }
+
+    // ── Reject exact combos the user previously thumbs-down'd ────────────────
+    // The hash is sorted-id join — same as feedback insertion. If Gemini
+    // happens to regenerate the exact same disliked outfit, drop it here
+    // and let ensureThreeOutfits build a different one.
+    if (dislikedCombos.size > 0 && parsed.outfits.length > 0) {
+      const before = parsed.outfits.length;
+      parsed.outfits = parsed.outfits.filter(o => {
+        const ids = (o.pieceIds ?? [])
+          .map(id => typeof id === 'string' ? parseInt(id, 10) : id)
+          .filter(n => Number.isFinite(n)) as number[];
+        const hash = [...ids].sort((a, b) => a - b).join('-');
+        return !dislikedCombos.has(hash);
+      });
+      if (parsed.outfits.length < before) {
+        console.log(`🚫 dropped ${before - parsed.outfits.length} previously-disliked combos`);
+      }
     }
 
     // ── Validation pass: enforce diversity + layer count + Office tonal rule ─

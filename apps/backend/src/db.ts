@@ -81,12 +81,24 @@ export interface ScanJobFilesTable {
   processed: Generated<boolean>;
 }
 
+export interface OutfitFeedbackTable {
+  id: Generated<number>;
+  user_id: string;
+  theme: string;
+  piece_ids: string;        // JSON array, sorted ascending
+  piece_ids_hash: string;   // e.g. "1-5-12" for fast dedup
+  feedback: 'up' | 'down';
+  reason: string | null;
+  created_at: Generated<Date>;
+}
+
 export interface Database {
   clothes: ClothesTable;
   outfit_history: OutfitHistoryTable;
   profiles: ProfilesTable;
   scan_jobs: ScanJobsTable;
   scan_job_files: ScanJobFilesTable;
+  outfit_feedback: OutfitFeedbackTable;
 }
 
 // ── Kysely instance ────────────────────────────────────────────────────────

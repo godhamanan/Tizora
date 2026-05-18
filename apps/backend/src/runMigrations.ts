@@ -186,5 +186,25 @@ export async function runMigrations(): Promise<void> {
   // ── 013: drop catalog table (feature removed, will be reimplemented later) ─
   await sql`DROP TABLE IF EXISTS catalog CASCADE`.execute(db);
 
+  // ── 014: outfit_feedback — per-user thumbs up/down on outfit suggestions.
+  // Drives reinforcement signal: liked pieces get score boosts in /suggest,
+  // disliked exact combos never re-appear, and aggregated preferences are
+  // injected into the Gemini prompt as context. piece_ids_hash is a sorted
+  // joined string for O(1) combo-dedup lookups.
+  await sql`
+    CREATE TABLE IF NOT EXISTS outfit_feedback (
+      id              SERIAL PRIMARY KEY,
+      user_id         TEXT        NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+      theme           TEXT        NOT NULL,
+      piece_ids       TEXT        NOT NULL,
+      piece_ids_hash  TEXT        NOT NULL,
+      feedback        TEXT        NOT NULL CHECK (feedback IN ('up','down')),
+      reason          TEXT,
+      created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `.execute(db);
+  await sql`CREATE INDEX IF NOT EXISTS idx_feedback_user_theme ON outfit_feedback(user_id, theme, created_at DESC)`.execute(db);
+  await sql`CREATE INDEX IF NOT EXISTS idx_feedback_user_hash  ON outfit_feedback(user_id, piece_ids_hash)`.execute(db);
+
   console.log('✅ All migrations complete');
 }

@@ -90,6 +90,21 @@ export async function clearWardrobe(): Promise<{ deleted: number }> {
   return handleResponse<{ deleted: number }>(res);
 }
 
+export async function submitOutfitFeedback(params: {
+  theme: string;
+  pieceIds: number[];
+  feedback: 'up' | 'down';
+  reason?: string;
+}): Promise<{ ok: boolean }> {
+  const res = await fetch(`${BASE}/feedback`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  return handleResponse<{ ok: boolean }>(res);
+}
+
 export async function getOutfitSuggestions(
   theme: string,
   weather?: string,
