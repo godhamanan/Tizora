@@ -220,6 +220,8 @@ router.post('/', async (req: Request, res: Response) => {
     // — e.g. bottoms tagged for casual when theme is Date Night — rather than
     // letting Gemini return a shirt-only outfit.
     parsed.outfits = padThinOutfits(parsed.outfits, wardrobe, theme);
+    // ── Guarantee 3 outfits — top up with constructed fallbacks if fewer ─────
+    parsed.outfits = ensureThreeOutfits(parsed.outfits, wardrobe, theme, anchorItem);
 
     const allIds = [...new Set(
       parsed.outfits.flatMap(o => o.pieceIds ?? [])
@@ -724,22 +726,109 @@ function padThinOutfits(
       }
     }
 
-    const stillIncomplete = !hasTop || !hasBottom;
-    return {
-      outfit: changed
-        ? { ...outfit, pieceIds: newIds, pieces: newNames, matchQuality: 'closest' as const }
-        : outfit,
-      incomplete: stillIncomplete,
-    };
+    return changed
+      ? { ...outfit, pieceIds: newIds, pieces: newNames, matchQuality: 'closest' as const }
+      : outfit;
   });
 
-  // Drop outfits that couldn't reach top + bottom (rare — the structural
-  // guarantee above should prevent this, but defensive).
-  const kept = padded.filter(x => !x.incomplete).map(x => x.outfit);
-  if (kept.length < padded.length) {
-    console.warn(`⚠️  Dropped ${padded.length - kept.length} incomplete outfits (no top or no bottom)`);
+  return padded;
+}
+
+// ── Guarantee 3 outfits ────────────────────────────────────────────────────
+// If Gemini returned fewer than 3 outfits (or they were filtered/dropped
+// upstream), construct enough fallback outfits from the wardrobe to reach 3.
+// Each fallback uses a different hero/top so users see real variety, not
+// the same combination three times.
+function ensureThreeOutfits(
+  outfits: AiOutfit[],
+  wardrobe: WardrobeItem[],
+  theme: string,
+  anchor: { id: number; name: string; category: string } | null,
+): AiOutfit[] {
+  const TARGET = 3;
+  if (outfits.length >= TARGET) return outfits.slice(0, TARGET);
+
+  const usedTopIds = new Set<number>();
+  outfits.forEach(o => (o.pieceIds ?? []).forEach(id => {
+    const item = wardrobe.find(w => w.id === id);
+    if (item && (item.category === 'Tops' || item.category === 'Outerwear'
+              || ['Dress','Saree','Lehenga','Kurta','Sherwani'].includes(item.category))) {
+      usedTopIds.add(id);
+    }
+  }));
+
+  const tops = wardrobe.filter(w =>
+    w.category === 'Tops' || w.category === 'Outerwear' ||
+    ['Dress','Saree','Lehenga','Kurta','Sherwani'].includes(w.category)
+  );
+  const bottoms = wardrobe.filter(w => w.category === 'Bottoms');
+
+  const result = [...outfits];
+  const isStandalone = (p: WardrobeItem) =>
+    p.layer_role === 'standalone' ||
+    ['Dress','Saree','Lehenga','Kurta','Sherwani'].includes(p.category);
+
+  let attempts = 0;
+  while (result.length < TARGET && attempts < tops.length + 5) {
+    attempts++;
+    const top = tops.find(t => !usedTopIds.has(t.id)) ?? tops[result.length % Math.max(1, tops.length)];
+    if (!top) break;
+    usedTopIds.add(top.id);
+
+    const pieceIds: number[] = [];
+    const pieces:   string[] = [];
+
+    // If anchor is set, it must appear in every outfit
+    if (anchor && anchor.id !== top.id) {
+      pieceIds.push(anchor.id);
+      pieces.push(anchor.name);
+    }
+
+    pieceIds.push(top.id);
+    pieces.push(top.name);
+
+    // Add bottom unless the top is a standalone (dress/saree/etc.)
+    if (!isStandalone(top)) {
+      // Rotate through available bottoms for variety
+      const bottom = bottoms[result.length % Math.max(1, bottoms.length)];
+      if (bottom && !pieceIds.includes(bottom.id)) {
+        pieceIds.push(bottom.id);
+        pieces.push(bottom.name);
+      }
+    }
+
+    // Theme-appropriate shoes (returns undefined if no shoes in wardrobe)
+    const shoes = pickShoesForTheme(wardrobe, theme, new Set(pieceIds));
+    if (shoes) {
+      pieceIds.push(shoes.id);
+      pieces.push(shoes.name);
+    }
+
+    // Only add the outfit if it has at least top + bottom (or standalone)
+    const hasTop    = pieceIds.length > 0;
+    const hasBottom = !isStandalone(top) ? pieces.some((_, i) => {
+      const id = pieceIds[i];
+      const it = wardrobe.find(w => w.id === id);
+      return !!it && it.category === 'Bottoms';
+    }) : true;
+
+    if (!hasTop || !hasBottom) continue;
+
+    result.push({
+      name: `Closest Match — ${theme} ${result.length + 1}`,
+      template: 'Closest Match',
+      trendContext: `Best from your wardrobe for ${theme}`,
+      pieceIds,
+      pieces,
+      heroPieceId: top.id,
+      occasion: theme,
+      tip: `Built from what your wardrobe offers — add more ${theme.toLowerCase()}-leaning pieces to expand options.`,
+      mood: 'Adaptive',
+      matchQuality: 'closest',
+    });
   }
-  return kept;
+
+  return result.slice(0, TARGET);
 }
 
 export default router;
