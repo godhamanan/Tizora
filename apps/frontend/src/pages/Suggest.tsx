@@ -307,7 +307,35 @@ export default function Suggest() {
                     Closest match from your wardrobe
                   </p>
                 )}
-                <OutfitBoard images={outfits[activeIndex].pieceImages ?? []} pieces={outfits[activeIndex].pieces} />
+                <div className="suggest-board-wrap">
+                  <OutfitBoard images={outfits[activeIndex].pieceImages ?? []} pieces={outfits[activeIndex].pieces} />
+
+                  {/* Floating thumbs — pinned to the board so feedback feels
+                      tied to the visual, not lost in the page footer */}
+                  <div className="suggest-thumbs">
+                    <button
+                      className={`suggest-thumb suggest-thumb-down ${voted[activeIndex] === 'down' ? 'is-voted' : ''}`}
+                      onClick={() => sendFeedback(outfits[activeIndex], 'down', activeIndex)}
+                      disabled={!!voted[activeIndex]}
+                      aria-label="Not for me"
+                    >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M17 2v11M22 11V4a2 2 0 0 0-2-2H6.5a2 2 0 0 0-2 1.7L3.1 12.7A2 2 0 0 0 5 15h6.3l-1 4.7A1.5 1.5 0 0 0 12 21.5L17 13" />
+                      </svg>
+                    </button>
+                    <button
+                      className={`suggest-thumb suggest-thumb-up ${voted[activeIndex] === 'up' ? 'is-voted' : ''}`}
+                      onClick={() => sendFeedback(outfits[activeIndex], 'up', activeIndex)}
+                      disabled={!!voted[activeIndex]}
+                      aria-label="I like this outfit"
+                    >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M7 22V11M2 13v7a2 2 0 0 0 2 2h13.5a2 2 0 0 0 2-1.7l1.4-9A2 2 0 0 0 19 9h-6.3l1-4.7A1.5 1.5 0 0 0 12 2.5L7 11" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
                 <div className="suggest-pieces">
                   {outfits[activeIndex].pieces.map((p, i) => (
                     <div key={i} className="suggest-piece">
@@ -322,40 +350,6 @@ export default function Suggest() {
                     <p className="italic-serif body">"{outfits[activeIndex].tip}"</p>
                   </div>
                 )}
-
-                {/* Thumbs feedback — trains the recommender per user, per theme */}
-                <div className="suggest-feedback">
-                  <div className="eyebrow suggest-feedback-eyebrow">— What do you think</div>
-                  <div className="suggest-feedback-row">
-                    <button
-                      className={`suggest-feedback-btn suggest-feedback-up ${voted[activeIndex] === 'up' ? 'is-voted' : ''}`}
-                      onClick={() => sendFeedback(outfits[activeIndex], 'up', activeIndex)}
-                      disabled={!!voted[activeIndex]}
-                      aria-label="I like this outfit"
-                    >
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M7 22V11M2 13v7a2 2 0 0 0 2 2h13.5a2 2 0 0 0 2-1.7l1.4-9A2 2 0 0 0 19 9h-6.3l1-4.7A1.5 1.5 0 0 0 12 2.5L7 11" />
-                      </svg>
-                      <span>Love it</span>
-                    </button>
-                    <button
-                      className={`suggest-feedback-btn suggest-feedback-down ${voted[activeIndex] === 'down' ? 'is-voted' : ''}`}
-                      onClick={() => sendFeedback(outfits[activeIndex], 'down', activeIndex)}
-                      disabled={!!voted[activeIndex]}
-                      aria-label="Not for me"
-                    >
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M17 2v11M22 11V4a2 2 0 0 0-2-2H6.5a2 2 0 0 0-2 1.7L3.1 12.7A2 2 0 0 0 5 15h6.3l-1 4.7A1.5 1.5 0 0 0 12 21.5L17 13" />
-                      </svg>
-                      <span>Not for me</span>
-                    </button>
-                  </div>
-                  {voted[activeIndex] && (
-                    <p className="meta suggest-feedback-thanks italic-serif">
-                      {voted[activeIndex] === 'up' ? 'Noted — we\'ll lean into this.' : 'Got it — we\'ll steer away.'}
-                    </p>
-                  )}
-                </div>
 
                 {/* Navigation pills — descriptive, large tap targets */}
                 {outfits.length > 1 && (

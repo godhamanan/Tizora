@@ -322,54 +322,59 @@
 .suggest-progress-seg.is-past   { background: var(--ink-3, #8b8678); }
 .suggest-progress-seg.is-active { background: var(--ink, #1a1a1a); }
 
-/* ── Thumbs feedback — the reinforcement signal ─────────────────── */
-.suggest-feedback {
-  margin-top: var(--s-6);
-  padding: var(--s-4) 0 var(--s-2);
-  border-top: 1px solid var(--border);
+/* ── Floating thumbs on the outfit board ─────────────────────────
+   Pinned to the visual — feedback feels tied to the look it judges,
+   not lost at the bottom of the page. Small circular icons (44px),
+   bottom-right corner, like Instagram story actions. */
+.suggest-board-wrap {
+  position: relative;
 }
-.suggest-feedback-eyebrow {
-  margin-bottom: var(--s-3);
-  color: var(--accent);
+
+.suggest-thumbs {
+  position: absolute;
+  bottom: var(--s-3);
+  right: var(--s-3);
+  display: flex;
+  gap: 10px;
+  z-index: 5;
 }
-.suggest-feedback-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--s-2);
-}
-.suggest-feedback-btn {
+
+.suggest-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.06);
+  color: var(--ink-3, #8b8678);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--s-2);
-  min-height: 52px;
-  padding: var(--s-3) var(--s-4);
-  border-radius: var(--r-md);
-  border: 1px solid var(--border);
-  background: var(--bg-card, #ffffff);
-  color: var(--ink, #1a1a1a);
-  font-size: 14px;
   cursor: pointer;
-  transition: all 0.18s var(--ease);
+  padding: 0;
+  transition: transform 0.2s var(--ease), background 0.2s var(--ease), color 0.2s var(--ease), border-color 0.2s var(--ease);
 }
-.suggest-feedback-btn:active:not(:disabled) { transform: scale(0.97); }
-.suggest-feedback-btn:hover:not(:disabled) { border-color: var(--ink-3, #8b8678); }
-.suggest-feedback-btn:disabled { cursor: default; }
-.suggest-feedback-up.is-voted {
-  background: #e9f6ec;
-  border-color: #4f8b5a;
-  color: #2d6b3a;
+.suggest-thumb:active:not(:disabled) { transform: scale(0.88); }
+.suggest-thumb:hover:not(:disabled)  { color: var(--ink, #1a1a1a); border-color: var(--ink-3, #8b8678); }
+.suggest-thumb:disabled              { cursor: default; }
+
+.suggest-thumb-up.is-voted {
+  background: #2d6b3a;
+  border-color: #2d6b3a;
+  color: #ffffff;
+  animation: thumb-pop 0.36s var(--ease);
 }
-.suggest-feedback-down.is-voted {
-  background: #f7eded;
-  border-color: #a55757;
-  color: #8a3939;
+.suggest-thumb-down.is-voted {
+  background: #8a3939;
+  border-color: #8a3939;
+  color: #ffffff;
+  animation: thumb-pop 0.36s var(--ease);
 }
-.suggest-feedback-btn svg { flex-shrink: 0; }
-.suggest-feedback-thanks {
-  text-align: center;
-  margin-top: var(--s-3);
-  color: var(--ink-4, #a6a094);
+
+@keyframes thumb-pop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.18); }
+  100% { transform: scale(1); }
 }
 
 /* ── Named navigation pills — big, descriptive tap targets ──────── */
