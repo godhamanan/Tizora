@@ -486,16 +486,22 @@ function enforceOutfitRules(
   const heroId = outfit.heroPieceId;
   const isPatterned = (p: WardrobeItem) => !!p.pattern && !/^(solid|plain)?$/i.test(p.pattern);
 
-  // Sort non-footwear by keep-priority:
-  //   hero > standalone (dress) > bottom > outer > mid > base > other
-  // Earlier-listed wins when we dedupe categories.
+  // FULL_GARMENT_CATS = items that cover top + bottom (a dress IS the outfit).
+  // CRITICAL: pants/leggings get layer_role==='standalone' from the classifier
+  // because they're "complete pieces worn alone" — but they are NOT full-body
+  // garments. The validator must use CATEGORY only, never layer_role, to decide
+  // what's a top/bottom/full garment. Treating jeans as "the whole outfit" was
+  // the root cause of cargo pants being dropped from outfits.
+  const FULL_GARMENT_CATS = ['Dress','Saree','Lehenga','Kurta','Sherwani'];
+  const isFullGarmentCat = (p: WardrobeItem) => FULL_GARMENT_CATS.includes(p.category);
+
+  // Sort non-footwear by keep-priority: hero > full garment > bottom > outer > top > other
   const priority = (p: WardrobeItem) => {
     if (p.id === heroId) return 0;
-    if (p.layer_role === 'standalone' || p.category === 'Dress') return 1;
+    if (isFullGarmentCat(p)) return 1;
     if (p.category === 'Bottoms') return 2;
-    if (p.layer_role === 'outer' || p.category === 'Outerwear') return 3;
-    if (p.layer_role === 'mid') return 4;
-    if (p.layer_role === 'base' || p.category === 'Tops') return 5;
+    if (p.category === 'Outerwear') return 3;
+    if (p.category === 'Tops') return 5;
     return 6;
   };
   const ranked = [...nonFootwear].sort((a, b) => priority(a) - priority(b));
@@ -503,21 +509,22 @@ function enforceOutfitRules(
   const keep: WardrobeItem[] = [];
   let hasBottom = false;
   let hasOuter = false;
-  let hasStandalone = false;
+  let hasFullGarment = false;
   let patternedCount = 0;
 
   for (const p of ranked) {
     if (keep.length >= maxLayers) break;
 
-    // 1-standalone: a dress/kurta is the whole outfit, max 1
-    if (p.layer_role === 'standalone' || p.category === 'Dress' || p.category === 'Kurta' || p.category === 'Saree' || p.category === 'Lehenga') {
-      if (hasStandalone) continue;
-      hasStandalone = true;
+    // Full-body garment (dress/saree/kurta/lehenga/sherwani) — max 1, covers
+    // both top + bottom. NEVER triggered by Bottoms or any other category.
+    if (isFullGarmentCat(p)) {
+      if (hasFullGarment) continue;
+      hasFullGarment = true;
       keep.push(p);
       continue;
     }
 
-    // 1-bottom: only one Bottoms piece
+    // 1-bottom: only one Bottoms piece (regardless of layer_role)
     if (p.category === 'Bottoms') {
       if (hasBottom) continue;
       hasBottom = true;
