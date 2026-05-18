@@ -132,9 +132,18 @@ export default function Upload() {
 
   async function handleBatch(files: File[]) {
     setNotice(null);
-    const images = files.filter(f => f.type.startsWith('image/'));
-    if (images.length === 0) { setNotice('Please select image files (JPG, PNG, or WEBP).'); return; }
-    if (images.length > MAX_BATCH) { setNotice(`You can upload up to ${MAX_BATCH} photos at a time.`); return; }
+    const allImages = files.filter(f => f.type.startsWith('image/'));
+    if (allImages.length === 0) { setNotice('Please select image files (JPG, PNG, or WEBP).'); return; }
+
+    // Native file pickers (iOS/Android/desktop) can't cap selection count, so
+    // we cap on JS side. Don't block the user — take the first MAX_BATCH and
+    // continue. Show a soft inline notice that says we kept the first N and
+    // they can add the rest in the next batch.
+    const overflow = allImages.length - MAX_BATCH;
+    const images   = overflow > 0 ? allImages.slice(0, MAX_BATCH) : allImages;
+    if (overflow > 0) {
+      setNotice(`Using the first ${MAX_BATCH} photos. Add the remaining ${overflow} in another batch.`);
+    }
 
     const previews = images.map(f => URL.createObjectURL(f));
     setBatchPreviews(previews);
