@@ -509,8 +509,9 @@ ${badExamples}
 
 Rules:
 ${rules}
-• Layer count: ${occ.layerCount.min}–${occ.layerCount.max} pieces (EXCLUDING footwear)
-• Footwear: ${footwearList}
+• Clothing layer count: ${occ.layerCount.min}–${occ.layerCount.max} (top + bottom [+ optional outer])
+• PLUS 1 footwear piece if Shoes exist in wardrobe — pick from: ${footwearList}
+• Total pieceIds: target ${occ.layerCount.min + 1}–${occ.layerCount.max + 1} (cap ${occ.layerCount.max + 1})
 
 Preferred palette: ${preferredColors}${avoidLine}${silhouette}
 
@@ -529,15 +530,24 @@ For EACH outfit, internally answer in order:
 
 ━━━ STRICT REQUIREMENTS ━━━
 
-🚨 MINIMUM OUTFIT RULE: Every outfit MUST contain ≥1 top (or dress) AND ≥1 bottom. A 1-piece outfit is NEVER acceptable — if no ideal bottom exists, use ANY available bottom and set matchQuality:"closest".
-🚨 LAYER CAP: Max ${occ.layerCount.max} non-footwear pieces. Target ${occ.layerCount.min}–${occ.layerCount.max}. If wardrobe is limited, prioritise complete 2-piece combos (focal top + any bottom) over leaving slots empty.
+🚨 COMPLETE OUTFIT RULE (NON-NEGOTIABLE):
+Every outfit's pieceIds MUST contain — in this order of priority:
+   (a) 1 TOP — shirt/tee/knit/blouse/etc.  (OR a standalone dress/saree/kurta/lehenga that covers top + bottom)
+   (b) 1 BOTTOM — jeans/trousers/chinos/skirt/etc.  (omit ONLY if (a) is a standalone dress/saree)
+   (c) 1 FOOTWEAR from the Shoes category — REQUIRED if any shoes exist in the wardrobe; OMIT if wardrobe has zero shoes
+   (d) 0–1 OUTER layer — blazer/bomber/cardigan/etc. (optional)
+
+A "top alone", "top + shoes (no bottom)", or "top + outer (no bottom)" outfit is NEVER acceptable.
+If wardrobe lacks the ideal piece for any slot, pick the CLOSEST available piece from the wardrobe and set matchQuality:"closest". Build the most complete outfit possible from what exists.
+
+🚨 PIECE COUNT: pieceIds.length should be ${occ.layerCount.min + 1}–${occ.layerCount.max + 1}. Never exceed ${occ.layerCount.max + 1}.
 
 1. Each of the 3 outfits MUST use a DIFFERENT archetype: ${templateList}
 2. The HERO PIECE must be different across all 3 outfits (no reusing the same anchor with swapped layers).
 3. Each outfit must have EXACTLY ONE statement / focal piece — never two competing statements.
-4. EXACTLY 1 bottom per outfit. EXACTLY 1 outer-layer max. Maximum 1 pattern across the outfit.
+4. EXACTLY 1 bottom per outfit. EXACTLY 1 outer-layer max. EXACTLY 1 footwear per outfit (when shoes exist). Maximum 1 pattern across the outfit.
 5. Formality consistent within an outfit. Never mix athletic with business-casual or formal.
-6. Footwear must match the occasion (see Footwear list above).
+6. Footwear MUST suit the occasion: chelsea/loafers for Date Night & Office, sneakers/canvas for Casual Outing & Travel, athletic only for Workout, mojris/leather for Festive/Wedding. NEVER athletic sneakers for Date Night/Office/Wedding.
 7. ONLY use piece IDs from the wardrobe above. Never invent IDs.
 8. Set "template" to the archetype name you used.
 9. If a needed slot is missing from the wardrobe, gracefully use the closest available piece AND set matchQuality:"closest".

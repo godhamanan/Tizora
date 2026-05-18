@@ -92,6 +92,27 @@ router.post('/', async (req: Request, res: Response) => {
 
     let toSend = ranked.slice(0, TOP_N);
 
+    // Structural guarantee: every outfit needs top + bottom + (ideally) shoes.
+    // If the scoring filter dropped ALL bottoms (because the user's bottoms are
+    // tagged for other occasions), force-inject the best-available bottom from
+    // the FULL wardrobe so Gemini and the pad pass have something to work with.
+    // Same for tops and shoes. This is what prevents "shirt-only" suggestions.
+    const ensureCategoryPresent = (cats: string[]) => {
+      const present = toSend.some(c => cats.includes(c.category));
+      if (present) return;
+      // Pick highest-scoring item in this category from the FULL wardrobe
+      const candidate = scored
+        .filter(s => cats.includes(s.item.category))
+        .map(s => s.item)[0];
+      if (candidate && !toSend.find(c => c.id === candidate.id)) {
+        toSend = [candidate, ...toSend.slice(0, TOP_N - 1)];
+      }
+    };
+    ensureCategoryPresent(['Tops','Dress','Kurta','Saree','Lehenga','Sherwani']);
+    ensureCategoryPresent(['Bottoms','Dress','Saree','Lehenga']);
+    ensureCategoryPresent(['Shoes']);
+    ensureCategoryPresent(['Outerwear']);
+
     // Anchor piece is non-negotiable — force-include if score-filter dropped it
     if (anchorItem && !toSend.find(c => c.id === anchorItem.id)) {
       const full = wardrobe.find(c => c.id === anchorItem.id);
@@ -193,9 +214,12 @@ router.post('/', async (req: Request, res: Response) => {
     }
 
     // ── Validation pass: enforce diversity + layer count + Office tonal rule ─
-    parsed.outfits = validateOutfits(parsed.outfits, theme, toSend);
-    // ── Pad thin outfits: never return a single-piece "look" ─────────────────
-    parsed.outfits = padThinOutfits(parsed.outfits, toSend);
+    parsed.outfits = validateOutfits(parsed.outfits, theme, wardrobe);
+    // ── Pad thin outfits: enforce top + bottom (+ shoes when available) ──────
+    // Pass FULL wardrobe (not toSend) so we can pull in even non-ideal pieces
+    // — e.g. bottoms tagged for casual when theme is Date Night — rather than
+    // letting Gemini return a shirt-only outfit.
+    parsed.outfits = padThinOutfits(parsed.outfits, wardrobe, theme);
 
     const allIds = [...new Set(
       parsed.outfits.flatMap(o => o.pieceIds ?? [])
@@ -260,6 +284,7 @@ function buildFallback(wardrobe: any[], theme: string, anchor: { id: number; nam
 type ScorableItem = {
   category: string;
   subcategory: string | null;
+  color: string;
   formality: string | null;
   style: string | null;
   occasion_tags: string | null;
@@ -271,56 +296,128 @@ type ScorableItem = {
 
 function scoreItem(item: ScorableItem, theme: string, themeKey: string, allowed: string[]): number {
   let score = 0;
+  const sub   = (item.subcategory ?? '').toLowerCase();
+  const color = (item.color ?? '').toLowerCase();
 
   // 1. Formality match (theme allows this formality bucket)
   if (item.formality && allowed.includes(item.formality)) score += 3;
 
-  // 2. Exact occasion_tag match (split-trim — not the old substring bug)
+  // 2. Exact occasion_tag match (split-trim)
   const tags = (item.occasion_tags ?? '').toLowerCase().split(',').map(t => t.trim()).filter(Boolean);
   if (tags.includes(themeKey)) score += 5;
 
-  // 3. pieceRole bias — hero pieces shine in most occasions, but NOT Office
-  if (item.piece_role === 'hero' && theme !== 'Office') score += 3;
+  // 3. pieceRole bias
+  if (item.piece_role === 'hero'   && theme !== 'Office') score += 3;
   if (item.piece_role === 'anchor') score += 2;
 
-  // 3b. Structural baseline — every outfit needs a bottom + shoes.
-  // Ensures they stay in top 30 even when formality/tag scores are low.
+  // 3b. Structural baseline — bottoms + shoes always need a positive score so
+  // they survive the top-30 filter. The ensureCategoryPresent fallback
+  // catches edge cases where these still get filtered.
   if (item.category === 'Bottoms' && item.formality !== 'athletic') score += 2;
-  if (item.category === 'Shoes') score += 1;
+  if (item.category === 'Shoes') score += 2;
 
-  // 4. Layer-role bonus for layered occasions
+  // 4. Layer-role bonus
   if ((theme === 'Date Night' || theme === 'Night Out') && item.layer_role === 'outer') score += 2;
 
   // 5. Energy match for casual occasions
   if ((theme === 'Travel' || theme === 'Casual Outing') &&
-      /comfortable|laid-back|relaxed|effortless/i.test(item.energy ?? '')) {
-    score += 2;
+      /comfortable|laid-back|relaxed|effortless/i.test(item.energy ?? '')) score += 2;
+
+  // ───────────────────────────────────────────────────────────────────────
+  // 6. PER-OCCASION SCORING (all 8 themes). Without these, only Office and
+  // Workout had explicit good/bad rules and other occasions returned outfits
+  // that didn't feel occasion-appropriate.
+  // ───────────────────────────────────────────────────────────────────────
+  if (theme === 'Office') {
+    if (item.category === 'Tops'      && /shirt|button|oxford|polo/.test(sub) && item.formality !== 'casual') score += 6;
+    if (item.category === 'Outerwear' && /blazer|suit/.test(sub)) score += 6;
+    if (item.category === 'Bottoms'   && /trouser|chino|tailored/.test(sub)) score += 4;
+    if (item.category === 'Shoes'     && /loafer|derby|oxford|chelsea/.test(sub)) score += 4;
+    if (item.category === 'Tops'      && /t-shirt|tee|hoodie|sweatshirt/.test(sub)) score -= 2;
+    if (item.category === 'Bottoms'   && /short|cargo|jogger/.test(sub)) score -= 4;
+    if (item.category === 'Shoes'     && /athletic|trainer|sport/.test(sub)) score -= 4;
   }
 
-  // 5b. Athletic items score high for Workout
+  if (theme === 'Date Night') {
+    if (item.category === 'Tops'      && /button|shirt|oxford|knit|henley|sweater/.test(sub)) score += 4;
+    if (item.category === 'Outerwear' && /bomber|leather|suede|blazer|overshirt/.test(sub)) score += 5;
+    if (item.category === 'Bottoms'   && /jean|trouser|chino/.test(sub)) score += 3;
+    if (item.category === 'Bottoms'   && /black|navy|charcoal|dark|indigo/.test(color)) score += 3;
+    if (item.category === 'Shoes'     && /chelsea|boot|loafer|leather/.test(sub)) score += 4;
+    if (item.category === 'Shoes'     && /sneaker/.test(sub) && /white|leather|clean/.test(sub + ' ' + color)) score += 2;
+    if (item.category === 'Tops'      && /hoodie|sweatshirt|graphic/.test(sub)) score -= 4;
+    if (item.category === 'Bottoms'   && /jogger|sweatpant|cargo|short/.test(sub)) score -= 4;
+    if (item.category === 'Shoes'     && /athletic|trainer|sport|sandal|flip/.test(sub)) score -= 4;
+  }
+
+  if (theme === 'Night Out') {
+    if (item.category === 'Outerwear' && /leather|bomber|suede/.test(sub)) score += 6;
+    if (item.category === 'Tops'      && /button|knit|henley/.test(sub)) score += 3;
+    if (item.category === 'Bottoms'   && /jean|trouser/.test(sub)) score += 3;
+    if (item.category === 'Bottoms'   && /black|dark|navy|charcoal/.test(color)) score += 3;
+    if (item.category === 'Shoes'     && /chelsea|boot|leather/.test(sub)) score += 4;
+    if (item.color_saturation === 'bold') score += 2;
+    if (item.category === 'Tops'      && /polo|graphic/.test(sub)) score -= 3;
+    if (item.category === 'Shoes'     && /athletic|trainer|sandal/.test(sub)) score -= 4;
+  }
+
+  if (theme === 'Casual Outing') {
+    if (item.category === 'Tops'      && /tee|t-shirt|hoodie|sweatshirt|knit|henley|polo/.test(sub)) score += 4;
+    if (item.category === 'Bottoms'   && /jean|chino|jogger|short/.test(sub)) score += 3;
+    if (item.category === 'Shoes'     && /sneaker|canvas|slip-on/.test(sub)) score += 4;
+    if (item.category === 'Outerwear' && /denim|bomber|overshirt|cardigan/.test(sub)) score += 3;
+    if (item.category === 'Outerwear' && /suit|tuxedo|sherwani|bandhgala/.test(sub)) score -= 6;
+    if (item.category === 'Shoes'     && /derby|oxford|mojri/.test(sub)) score -= 2;
+    if (item.formality === 'formal') score -= 3;
+  }
+
+  if (theme === 'Travel') {
+    if (item.category === 'Tops'      && /hoodie|sweatshirt|tee|knit/.test(sub)) score += 3;
+    if (item.category === 'Bottoms'   && /jogger|sweatpant|chino|cargo/.test(sub)) score += 4;
+    if (item.category === 'Shoes'     && /sneaker|slip-on/.test(sub)) score += 4;
+    if (item.category === 'Outerwear' && /cardigan|zip-up|overshirt/.test(sub)) score += 2;
+    if (item.category === 'Outerwear' && /leather|heavy|suit|tuxedo|bandhgala/.test(sub)) score -= 4;
+    if (item.category === 'Shoes'     && /chelsea|derby|oxford|heels/.test(sub)) score -= 3;
+    if (item.formality === 'formal' || item.formality === 'festive') score -= 4;
+  }
+
   if (theme === 'Workout') {
     if (item.formality === 'athletic') score += 8;
-    const sub = (item.subcategory ?? '').toLowerCase();
-    if (/jogger|sweatpant|hoodie|sweatshirt|tank|tee|short/.test(sub)) score += 3;
+    if (/jogger|sweatpant|hoodie|sweatshirt|tank|tee|short|leggings|bra/.test(sub)) score += 3;
+    if (item.category === 'Shoes' && /athletic|trainer|sport|running/.test(sub)) score += 6;
+    if (item.category === 'Shoes'     && /chelsea|loafer|derby|oxford|mojri|heels/.test(sub)) score -= 6;
+    if (item.category === 'Outerwear' && /blazer|suit|leather|sherwani/.test(sub)) score -= 6;
   }
 
-  // 6. OFFICE-specific strong preferences ────────────────────────────────
-  if (theme === 'Office') {
-    // Big boost for formal shirts / blazers / trousers — the Office archetype anchors
-    const sub = (item.subcategory ?? '').toLowerCase();
-    if (item.category === 'Tops' && /shirt|button|oxford|polo/.test(sub) && item.formality !== 'casual') score += 6;
-    if (item.category === 'Outerwear' && /blazer|suit/.test(sub)) score += 6;
-    if (item.category === 'Bottoms' && /trouser|chino|tailored/.test(sub)) score += 4;
-    // Soft penalty: casual tees lose ground when better Office options exist
-    if (item.category === 'Tops' && /t-shirt|tee|hoodie|sweatshirt/.test(sub)) score -= 2;
-    if (item.category === 'Bottoms' && /short|cargo|jogger/.test(sub)) score -= 4;
+  if (theme === 'Festive') {
+    if (item.style === 'Ethnic') score += 8;
+    if (item.style === 'Fusion') score += 4;
+    if (item.formality === 'festive') score += 6;
+    if (/kurta|sherwani|lehenga|saree|bandhgala|dupatta/.test(item.category.toLowerCase())) score += 6;
+    if (item.category === 'Shoes' && /mojri|loafer/.test(sub)) score += 4;
+    if (item.style === 'Western' && /silk|printed|embroidered/.test(sub)) score += 3;
+    if (item.formality === 'athletic') score -= 8;
+    if (item.category === 'Tops' && /hoodie|sweatshirt|tank/.test(sub)) score -= 5;
   }
 
-  // 7. Hard incompatibilities (strong negative)
-  if (item.formality === 'athletic' && theme !== 'Travel' && theme !== 'Casual Outing' && theme !== 'Workout') score -= 10;
-  if (item.style === 'Ethnic' && (theme === 'Office' || theme === 'Travel' || theme === 'Casual Outing' || theme === 'Workout')) score -= 8;
+  if (theme === 'Wedding') {
+    if (item.style === 'Ethnic') score += 10;
+    if (item.formality === 'formal' || item.formality === 'festive') score += 6;
+    if (/kurta|sherwani|lehenga|saree/.test(item.category.toLowerCase())) score += 8;
+    if (item.category === 'Outerwear' && /suit|tuxedo|bandhgala|sherwani/.test(sub)) score += 8;
+    if (item.category === 'Shoes' && /mojri|oxford|derby|leather/.test(sub)) score += 5;
+    if (item.formality === 'casual') score -= 6;
+    if (item.formality === 'athletic') score -= 12;
+    if (item.category === 'Bottoms' && /jean|jogger|short/.test(sub)) score -= 5;
+    if (item.category === 'Shoes' && /sneaker|athletic/.test(sub)) score -= 5;
+  }
+
+  // 7. Hard incompatibilities (but capped so structural pieces still survive
+  // — bottoms get +2 baseline, so even with -10 they reach -8 — closer to
+  // the -5 cutoff so a small wardrobe with mismatched bottoms still passes)
+  if (item.formality === 'athletic' && theme !== 'Travel' && theme !== 'Casual Outing' && theme !== 'Workout') score -= 8;
+  if (item.style === 'Ethnic' && (theme === 'Office' || theme === 'Travel' || theme === 'Casual Outing' || theme === 'Workout')) score -= 6;
   if (theme === 'Office' && item.color_saturation === 'bold') score -= 5;
-  if (theme === 'Office' && item.piece_role === 'hero' && item.color_saturation !== 'muted') score -= 3;
 
   return score;
 }
@@ -351,7 +448,10 @@ function enforceOutfitRules(
   maxLayers: number,
 ): { outfit: AiOutfit; trimmed: boolean } {
   const pieces = (outfit.pieceIds ?? []).map(id => byId.get(id)).filter(Boolean) as WardrobeItem[];
-  const footwear = pieces.filter(p => p.category === 'Shoes' || p.category === 'Accessories');
+  // Cap footwear at 1 pair + 1 accessory — Gemini occasionally returns 2 shoes
+  const shoesOnly   = pieces.filter(p => p.category === 'Shoes').slice(0, 1);
+  const accessories = pieces.filter(p => p.category === 'Accessories').slice(0, 1);
+  const footwear = [...shoesOnly, ...accessories];
   const nonFootwear = pieces.filter(p => p.category !== 'Shoes' && p.category !== 'Accessories');
 
   const heroId = outfit.heroPieceId;
@@ -516,39 +616,130 @@ function validateOutfits(outfits: AiOutfit[], theme: string, wardrobe: WardrobeI
   });
 }
 
+// ── Theme-aware shoe selection ─────────────────────────────────────────────
+// When Gemini omits footwear, pick the shoe from the wardrobe that best
+// matches the occasion. Returns undefined if wardrobe has no shoes at all —
+// in that case we leave the outfit shoeless rather than forcing wrong shoes.
+function pickShoesForTheme(
+  wardrobe: WardrobeItem[],
+  theme: string,
+  alreadyUsed: Set<number>,
+): WardrobeItem | undefined {
+  const shoes = wardrobe.filter(w => w.category === 'Shoes' && !alreadyUsed.has(w.id));
+  if (shoes.length === 0) return undefined;
+
+  const scoreShoe = (s: WardrobeItem): number => {
+    const sub = (s.subcategory ?? '').toLowerCase();
+    let n = 1; // baseline so we always pick *something* if shoes exist
+    if (theme === 'Office') {
+      if (/loafer|derby|oxford|chelsea/.test(sub)) n += 6;
+      if (/sneaker/.test(sub) && /white|leather|clean/.test(sub)) n += 3;
+      if (/athletic|trainer|sport|sandal/.test(sub)) n -= 5;
+    } else if (theme === 'Date Night' || theme === 'Night Out') {
+      if (/chelsea|boot|leather/.test(sub)) n += 6;
+      if (/loafer/.test(sub)) n += 4;
+      if (/sneaker/.test(sub) && /white|leather|clean/.test(sub)) n += 3;
+      if (/athletic|trainer|sport|sandal|flip/.test(sub)) n -= 5;
+    } else if (theme === 'Workout') {
+      if (/athletic|trainer|sport|running/.test(sub)) n += 8;
+      if (/chelsea|loafer|derby|oxford|mojri|heels/.test(sub)) n -= 6;
+    } else if (theme === 'Casual Outing' || theme === 'Travel') {
+      if (/sneaker|canvas|slip-on/.test(sub)) n += 5;
+      if (/loafer/.test(sub)) n += 2;
+      if (/derby|oxford|formal|heels/.test(sub)) n -= 3;
+    } else if (theme === 'Festive' || theme === 'Wedding') {
+      if (/mojri/.test(sub)) n += 8;
+      if (/loafer|leather|derby|oxford/.test(sub)) n += 5;
+      if (/athletic|trainer|sandal/.test(sub)) n -= 6;
+    }
+    return n;
+  };
+
+  return shoes.sort((a, b) => scoreShoe(b) - scoreShoe(a))[0];
+}
+
 // ── Pad thin outfits ───────────────────────────────────────────────────────
-// Gemini sometimes returns a 1-piece "closest match" when the wardrobe lacks
-// ideal pieces. We force every outfit to have at least 1 top + 1 bottom by
-// pulling in the best-available missing category from the scored wardrobe.
-function padThinOutfits(outfits: AiOutfit[], wardrobe: WardrobeItem[]): AiOutfit[] {
-  return outfits.map(outfit => {
+// Enforce the complete-outfit shape: every outfit must have top + bottom
+// (or a standalone dress that covers both). Footwear is added when available
+// but is OPTIONAL — a top + bottom is a complete outfit; a top alone or
+// top + shoes (no bottom) is not. Outfits that can't reach top + bottom even
+// after padding are dropped.
+//
+// CRITICAL: this function searches the FULL wardrobe (not just toSend), so
+// even items that scored poorly for the occasion can be pulled in as
+// substitutes — exactly the case where user has bottoms tagged for a
+// different occasion but they're still the only bottoms they own.
+function padThinOutfits(
+  outfits: AiOutfit[],
+  fullWardrobe: WardrobeItem[],
+  theme: string,
+): AiOutfit[] {
+  const isStandalone = (p: WardrobeItem) =>
+    p.layer_role === 'standalone' ||
+    ['Dress','Saree','Lehenga','Kurta','Sherwani'].includes(p.category);
+
+  const padded = outfits.map(outfit => {
     const existing = new Set<number>(outfit.pieceIds ?? []);
     const pieces   = (outfit.pieceIds ?? [])
-      .map(id => wardrobe.find(w => w.id === id))
+      .map(id => fullWardrobe.find(w => w.id === id))
       .filter(Boolean) as WardrobeItem[];
 
-    const nonFw = pieces.filter(p => p.category !== 'Shoes' && p.category !== 'Accessories');
-    if (nonFw.length >= 2) return outfit; // Already has enough pieces — leave it alone
+    const newIds   = [...(outfit.pieceIds ?? [])];
+    const newNames = [...(outfit.pieces ?? [])];
+    let changed = false;
 
-    const newIds   = [...(outfit.pieceIds   ?? [])];
-    const newNames = [...(outfit.pieces     ?? [])];
+    let hasTop    = pieces.some(p => p.category === 'Tops' || p.category === 'Outerwear' || isStandalone(p));
+    let hasBottom = pieces.some(p => p.category === 'Bottoms' || isStandalone(p));
+    const hasShoes = pieces.some(p => p.category === 'Shoes');
 
-    const hasTop    = pieces.some(p => ['Tops','Dress','Kurta','Saree','Lehenga','Sherwani','Outerwear'].includes(p.category));
-    const hasBottom = pieces.some(p => p.category === 'Bottoms' || p.layer_role === 'standalone');
-
-    if (!hasBottom) {
-      const bottom = wardrobe.find(w => !existing.has(w.id) && w.category === 'Bottoms');
-      if (bottom) { newIds.push(bottom.id); newNames.push(bottom.name); existing.add(bottom.id); }
-    }
+    // 1. Top missing → try Tops first, fall back to any standalone (which also gives us a bottom)
     if (!hasTop) {
-      const top = wardrobe.find(w => !existing.has(w.id) && w.category === 'Tops');
-      if (top) { newIds.push(top.id); newNames.push(top.name); existing.add(top.id); }
+      const candidate = fullWardrobe.find(w => !existing.has(w.id) && w.category === 'Tops')
+                     ?? fullWardrobe.find(w => !existing.has(w.id) && isStandalone(w));
+      if (candidate) {
+        newIds.push(candidate.id); newNames.push(candidate.name); existing.add(candidate.id);
+        changed = true;
+        hasTop = true;
+        if (isStandalone(candidate)) hasBottom = true;
+      }
     }
 
-    return newIds.length > (outfit.pieceIds ?? []).length
-      ? { ...outfit, pieceIds: newIds, pieces: newNames, matchQuality: 'closest' as const }
-      : outfit;
+    // 2. Bottom missing → try Bottoms first, fall back to any standalone (dress covers both)
+    if (!hasBottom) {
+      const candidate = fullWardrobe.find(w => !existing.has(w.id) && w.category === 'Bottoms')
+                     ?? fullWardrobe.find(w => !existing.has(w.id) && isStandalone(w));
+      if (candidate) {
+        newIds.push(candidate.id); newNames.push(candidate.name); existing.add(candidate.id);
+        changed = true;
+        hasBottom = true;
+      }
+    }
+
+    // 3. Shoes missing → add if wardrobe has any. If no shoes exist, leave shoeless.
+    if (!hasShoes) {
+      const shoes = pickShoesForTheme(fullWardrobe, theme, existing);
+      if (shoes) {
+        newIds.push(shoes.id); newNames.push(shoes.name); existing.add(shoes.id);
+        changed = true;
+      }
+    }
+
+    const stillIncomplete = !hasTop || !hasBottom;
+    return {
+      outfit: changed
+        ? { ...outfit, pieceIds: newIds, pieces: newNames, matchQuality: 'closest' as const }
+        : outfit,
+      incomplete: stillIncomplete,
+    };
   });
+
+  // Drop outfits that couldn't reach top + bottom (rare — the structural
+  // guarantee above should prevent this, but defensive).
+  const kept = padded.filter(x => !x.incomplete).map(x => x.outfit);
+  if (kept.length < padded.length) {
+    console.warn(`⚠️  Dropped ${padded.length - kept.length} incomplete outfits (no top or no bottom)`);
+  }
+  return kept;
 }
 
 export default router;
