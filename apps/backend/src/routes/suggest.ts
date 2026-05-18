@@ -73,6 +73,33 @@ router.post('/', async (req: Request, res: Response) => {
         : Promise.resolve(null),
     ]);
 
+    // ── Diagnostic: log wardrobe inventory by category. Helps debug "where's
+    // the bottom?" issues quickly from Railway logs.
+    const inventory = wardrobe.reduce<Record<string, number>>((acc, c) => {
+      acc[c.category] = (acc[c.category] ?? 0) + 1;
+      return acc;
+    }, {});
+    console.log(`📦 suggest user=${userId} theme=${theme} inventory=`, inventory);
+
+    // ── Completeness pre-check: outfit needs a top + bottom (or a standalone
+    // dress/saree/kurta/lehenga that covers both). If wardrobe can't form
+    // that shape, tell the user exactly what's missing instead of returning
+    // an incomplete outfit.
+    const has = (cat: string) => (inventory[cat] ?? 0) > 0;
+    const hasStandaloneFull = has('Dress') || has('Saree') || has('Lehenga') || has('Kurta') || has('Sherwani');
+    const hasTopCat = has('Tops') || has('Outerwear') || hasStandaloneFull;
+    const hasBottomCat = has('Bottoms') || hasStandaloneFull;
+    if (!hasTopCat || !hasBottomCat) {
+      const missing: string[] = [];
+      if (!hasTopCat)    missing.push('a top (shirt, tee, knit, etc.)');
+      if (!hasBottomCat) missing.push('a bottom (jeans, trousers, shorts, skirt, etc.)');
+      return res.status(400).json({
+        error: `Add ${missing.join(' and ')} to your wardrobe — we need both to build outfits.`,
+        detail: 'incomplete_wardrobe',
+        inventory,
+      });
+    }
+
     const allowed  = OCCASION_FORMALITY_MAP[theme] ?? [];
     const themeKey = theme.toLowerCase().replace(/\s+/g, '-');
 
@@ -676,13 +703,19 @@ function padThinOutfits(
   fullWardrobe: WardrobeItem[],
   theme: string,
 ): AiOutfit[] {
-  const isStandalone = (p: WardrobeItem) =>
-    p.layer_role === 'standalone' ||
-    ['Dress','Saree','Lehenga','Kurta','Sherwani'].includes(p.category);
+  // FULL_GARMENT_CATS = categories that cover both top + bottom (a dress IS the outfit).
+  // We intentionally do NOT trust layer_role==='standalone' here because the classifier
+  // marks jeans/leggings as standalone too — and a pair of jeans is NOT a top.
+  const FULL_GARMENT_CATS = ['Dress','Saree','Lehenga','Kurta','Sherwani'];
+  const isFullGarment = (p: WardrobeItem) => FULL_GARMENT_CATS.includes(p.category);
 
   const padded = outfits.map(outfit => {
-    const existing = new Set<number>(outfit.pieceIds ?? []);
-    const pieces   = (outfit.pieceIds ?? [])
+    // Normalize pieceIds to numbers (Gemini occasionally returns strings)
+    const idsAsNumbers = (outfit.pieceIds ?? [])
+      .map(id => typeof id === 'string' ? parseInt(id, 10) : id)
+      .filter(id => typeof id === 'number' && !isNaN(id)) as number[];
+    const existing = new Set<number>(idsAsNumbers);
+    const pieces   = idsAsNumbers
       .map(id => fullWardrobe.find(w => w.id === id))
       .filter(Boolean) as WardrobeItem[];
 
@@ -690,26 +723,28 @@ function padThinOutfits(
     const newNames = [...(outfit.pieces ?? [])];
     let changed = false;
 
-    let hasTop    = pieces.some(p => p.category === 'Tops' || p.category === 'Outerwear' || isStandalone(p));
-    let hasBottom = pieces.some(p => p.category === 'Bottoms' || isStandalone(p));
+    // CATEGORY-ONLY checks — no layer_role reliance.
+    let hasTop    = pieces.some(p => p.category === 'Tops' || p.category === 'Outerwear' || isFullGarment(p));
+    let hasBottom = pieces.some(p => p.category === 'Bottoms' || isFullGarment(p));
     const hasShoes = pieces.some(p => p.category === 'Shoes');
 
-    // 1. Top missing → try Tops first, fall back to any standalone (which also gives us a bottom)
+    // 1. Top missing → try Tops, then Outerwear, then full-body garment
     if (!hasTop) {
       const candidate = fullWardrobe.find(w => !existing.has(w.id) && w.category === 'Tops')
-                     ?? fullWardrobe.find(w => !existing.has(w.id) && isStandalone(w));
+                     ?? fullWardrobe.find(w => !existing.has(w.id) && w.category === 'Outerwear')
+                     ?? fullWardrobe.find(w => !existing.has(w.id) && isFullGarment(w));
       if (candidate) {
         newIds.push(candidate.id); newNames.push(candidate.name); existing.add(candidate.id);
         changed = true;
         hasTop = true;
-        if (isStandalone(candidate)) hasBottom = true;
+        if (isFullGarment(candidate)) hasBottom = true;
       }
     }
 
-    // 2. Bottom missing → try Bottoms first, fall back to any standalone (dress covers both)
+    // 2. Bottom missing → try Bottoms, then full-body garment (dress covers both)
     if (!hasBottom) {
       const candidate = fullWardrobe.find(w => !existing.has(w.id) && w.category === 'Bottoms')
-                     ?? fullWardrobe.find(w => !existing.has(w.id) && isStandalone(w));
+                     ?? fullWardrobe.find(w => !existing.has(w.id) && isFullGarment(w));
       if (candidate) {
         newIds.push(candidate.id); newNames.push(candidate.name); existing.add(candidate.id);
         changed = true;
@@ -724,6 +759,12 @@ function padThinOutfits(
         newIds.push(shoes.id); newNames.push(shoes.name); existing.add(shoes.id);
         changed = true;
       }
+    }
+
+    if (changed) {
+      console.log(`🪡 padded outfit "${outfit.name}": ${(outfit.pieceIds ?? []).length} → ${newIds.length} pieces [${newNames.join(', ')}]`);
+    } else if (!hasBottom) {
+      console.warn(`⚠️  outfit "${outfit.name}" still missing bottom — wardrobe has none?`);
     }
 
     return changed
@@ -764,12 +805,11 @@ function ensureThreeOutfits(
   const bottoms = wardrobe.filter(w => w.category === 'Bottoms');
 
   const result = [...outfits];
-  const isStandalone = (p: WardrobeItem) =>
-    p.layer_role === 'standalone' ||
-    ['Dress','Saree','Lehenga','Kurta','Sherwani'].includes(p.category);
+  const FULL_GARMENT_CATS = ['Dress','Saree','Lehenga','Kurta','Sherwani'];
+  const isFullGarment = (p: WardrobeItem) => FULL_GARMENT_CATS.includes(p.category);
 
   let attempts = 0;
-  while (result.length < TARGET && attempts < tops.length + 5) {
+  while (result.length < TARGET && attempts < tops.length + bottoms.length + 5) {
     attempts++;
     const top = tops.find(t => !usedTopIds.has(t.id)) ?? tops[result.length % Math.max(1, tops.length)];
     if (!top) break;
@@ -787,10 +827,9 @@ function ensureThreeOutfits(
     pieceIds.push(top.id);
     pieces.push(top.name);
 
-    // Add bottom unless the top is a standalone (dress/saree/etc.)
-    if (!isStandalone(top)) {
-      // Rotate through available bottoms for variety
-      const bottom = bottoms[result.length % Math.max(1, bottoms.length)];
+    // Add bottom unless top is a full-body garment (dress/saree/etc.) that covers both
+    if (!isFullGarment(top) && bottoms.length > 0) {
+      const bottom = bottoms[result.length % bottoms.length];
       if (bottom && !pieceIds.includes(bottom.id)) {
         pieceIds.push(bottom.id);
         pieces.push(bottom.name);
@@ -804,13 +843,14 @@ function ensureThreeOutfits(
       pieces.push(shoes.name);
     }
 
-    // Only add the outfit if it has at least top + bottom (or standalone)
-    const hasTop    = pieceIds.length > 0;
-    const hasBottom = !isStandalone(top) ? pieces.some((_, i) => {
-      const id = pieceIds[i];
-      const it = wardrobe.find(w => w.id === id);
-      return !!it && it.category === 'Bottoms';
-    }) : true;
+    // Verify the constructed outfit has a top + bottom (or full garment).
+    // We use category-only checks, never layer_role.
+    const hasTop    = isFullGarment(top) || top.category === 'Tops' || top.category === 'Outerwear';
+    const hasBottom = isFullGarment(top) ||
+                      pieceIds.some(id => {
+                        const it = wardrobe.find(w => w.id === id);
+                        return !!it && it.category === 'Bottoms';
+                      });
 
     if (!hasTop || !hasBottom) continue;
 
